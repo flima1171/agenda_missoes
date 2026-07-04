@@ -26,10 +26,11 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** nenhuma (aguardando iniciar).
-- **PRÓXIMA TAREFA:** Fase 0 — Preparação (criar branch `evolucao/roadmap` e commit do
-  estado atual). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 0.
-- **Depois dela:** Fase 1 — Blindagem de produção.
+- **Fase em andamento:** Fase 0 concluída.
+- **PRÓXIMA TAREFA:** Fase 1 — Blindagem de produção (bloquear `/missions/reset` fora
+  de `local`, esconder `#resetBtn`, `.env.production.example`, script de backup do
+  SQLite). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 1.
+- **Depois dela:** Fase 2 — Pipeline de deploy offline (FrankenPHP) + DEPLOY.md.
 
 ---
 
@@ -39,13 +40,24 @@
   coluna vizinha). Mudanças: `public/css/app.css` (`min-width:0` em `.day-cell` e
   `.cal-mission`) e `public/js/app.js` (atributo `title` com texto completo na
   `.cal-mission`). VERIFICADO no navegador (calendário normal + modo monitor, em
-  mobile/tablet/desktop). **Pendência:** ainda NÃO commitado — será commitado na Fase 0.
+  mobile/tablet/desktop).
+- **2026-07-04** — **Fase 0 concluída.** Criada a branch `evolucao/roadmap` a partir
+  de `main`. Commit `f8a713a` com todo o estado acumulado (fix do overflow do
+  calendário, migrations `2025_01_02_000000_add_previous_status_to_missions_table` e
+  `2025_01_03_000000_convert_responsible_to_responsibles`, `composer.lock` e demais
+  ajustes pendentes). Lidos e conferidos contra o código real: `MissionController.php`,
+  `Mission.php`, `routes/web.php`, `painel.blade.php`, `.env` — todos batem com o que
+  o ANDAMENTO/roadmap descreviam (`#resetBtn` na linha 48 do blade, `$painelPeople` na
+  linha 198, `CAL_START`/`CAL_END` na linha 16 de `app.js`). Subi o app com
+  `preview_start` (porta 8010, pois a 8000 estava ocupada por outra sessão — ajustado
+  `.claude/launch.json` para usar `--port=8010`) e confirmei visualmente que o painel
+  carrega sem erros de console.
 
 ---
 
 ## 🗒️ FILA DE FASES (visão geral; detalhe no roadmap-mestre.md)
 
-- [ ] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
+- [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [ ] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
 - [ ] **Fase 2** — Deploy offline: `build-bundle.ps1` + `DEPLOY.md` (FrankenPHP, fallback
