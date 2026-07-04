@@ -26,11 +26,11 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 1 concluída.
-- **PRÓXIMA TAREFA:** Fase 2 — Pipeline de deploy offline (`build-bundle.ps1` +
-  `DEPLOY.md` com FrankenPHP, fallback de proxy, systemd, conferir extensão
-  pdo_sqlite). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 2.
-- **Depois dela:** Fase 3 — Cadastro de militares (tabela `militares` + CRUD Livewire).
+- **Fase em andamento:** Fase 2 concluída.
+- **PRÓXIMA TAREFA:** Fase 3 — Cadastro de militares (tabela `militares` + CRUD
+  Livewire, inativar em vez de apagar, missões guardam nome como snapshot).
+  Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 3.
+- **Depois dela:** Fase 4 — Seletor de responsáveis progressivo.
 
 ---
 
@@ -83,6 +83,39 @@
   Windows; na VM Debian real, confirmar se `sqlite3` está instalado (ou instalar) pra
   usar o modo `.backup` mais seguro. O agendamento via cron ainda não foi testado de
   fato (só documentado no cabeçalho do script) — só será possível validar na VM.
+- **2026-07-04** — **Fase 2 concluída — Pipeline de deploy offline (FrankenPHP).**
+  Antes de escrever qualquer comando, pesquisei a documentação oficial do FrankenPHP
+  (frankenphp.dev/docs, github.com/php/frankenphp — inclusive lendo o `install.sh`
+  oficial e o `build-static.sh` direto do repositório) para não inventar nomes de
+  asset/flags. Criados: `build-bundle.ps1` (copia o projeto pra uma pasta temporária,
+  roda `composer install --no-dev --optimize-autoloader` **nessa cópia** — sem tocar
+  no `vendor/` nem no `.env` do checkout de dev —, recria um `database/database.sqlite`
+  novo e migrado, sem os dados de demonstração, via um `.env` temporário
+  (`.env.production.example` + `key:generate`) que é apagado antes de zipar, e
+  compacta tudo em `build/agenda-missoes-<timestamp>.zip`); `DEPLOY.md` com o
+  procedimento completo (baixar `frankenphp-linux-x86_64-gnu` das releases oficiais —
+  confirmado no `install.sh` que é esse o asset certo pra Debian/glibc; `pdo_sqlite` e
+  `sqlite3` confirmados na lista `defaultExtensions` do `build-static.sh` oficial;
+  Caddyfile pro Laravel; fallback de proxy da OM em `apt`/variáveis `http_proxy`;
+  unit systemd; `migrate --force` + `config:cache`/`route:cache`/`view:cache`;
+  agendamento do `backup-sqlite.sh` via cron). Trechos que a documentação oficial não
+  cobre (ex: conteúdo exato do `.service` do pacote `.deb`, se `frankenphp php-cli -m`
+  funciona igual ao `php -m`) foram marcados explicitamente como "PENDENTE DE
+  VERIFICAÇÃO NO ALVO" — não inventei nada em cima disso. Adicionado `/build` ao
+  `.gitignore`. **VERIFICADO localmente:** rodei `build-bundle.ps1` de verdade (não só
+  li o código) — gerou o zip; extraí e conferi: sem `.env`, `.git`, `.claude`,
+  `tests/`; `vendor/` só com dependências de produção (sem `phpunit`); banco SQLite
+  migrado com `SELECT count(*) FROM missions` = 0 (sem dados de demonstração);
+  `storage/framework/{sessions,views}` e `storage/logs` só com o `.gitignore`
+  placeholder. Confirmei que o `vendor/` e o `.env` deste checkout de desenvolvimento
+  não foram alterados pelo script (`git status` limpo, `.env` continua `APP_ENV=local`).
+  **PENDENTE (só verificável na VM real, listado também no fim do `DEPLOY.md`):**
+  extensão `pdo_sqlite` de fato presente no binário baixado; se o proxy da OM libera
+  os domínios do instalador oficial (fallback via `apt`); permissões/usuário e
+  comportamento de restart da unit systemd (ela é uma composição nossa, não o arquivo
+  oficial do pacote `.deb`, que não está publicado); caminho final de instalação e
+  `APP_URL`. **Não testei rodar o binário do FrankenPHP nem o zip na VM** — esta fase
+  só cobre o pipeline de preparação, que roda 100% nesta máquina Windows.
 
 ---
 
@@ -91,7 +124,7 @@
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
-- [ ] **Fase 2** — Deploy offline: `build-bundle.ps1` + `DEPLOY.md` (FrankenPHP, fallback
+- [x] **Fase 2** — Deploy offline: `build-bundle.ps1` + `DEPLOY.md` (FrankenPHP, fallback
       de proxy, systemd, conferir extensão pdo_sqlite).
 - [ ] **Fase 3** — Cadastro de militares: tabela `militares` + CRUD Livewire (inativar em
       vez de apagar; missões guardam nome como snapshot, não reescrevem histórico).
@@ -116,6 +149,8 @@
 - `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Sem autenticação.
 - **Decisões travadas:** interface → **Livewire** (reaproveitar CSS, live via `wire:poll`);
   deploy → **FrankenPHP** (binário único, VM offline atrás de proxy).
+- Deploy offline: `build-bundle.ps1` (raiz do projeto) gera o zip de produção;
+  `DEPLOY.md` (raiz) tem o procedimento completo pra VM.
 
 ---
 

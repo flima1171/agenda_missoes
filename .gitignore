@@ -25,3 +25,6 @@ yarn-error.log
 
 # Backups locais gerados por scripts/backup-sqlite.sh
 /storage/app/backups
+
+# Bundles offline gerados por build-bundle.ps1
+/build
