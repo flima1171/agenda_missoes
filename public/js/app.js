@@ -6,11 +6,13 @@
   // ---------- config vinda do Blade ----------
   const CFG = window.__PAINEL__ || {};
   const PEOPLE = CFG.people || [];
+  const COMPLETERS = PEOPLE.filter(p => p !== 'Toda a seção');
   const OM_NAME = CFG.omName || '25º Batalhão de Caçadores';
   const OM_SIGLA = CFG.omSigla || '25º BC';
   const CSRF = CFG.csrf || '';
   const ROUTES = CFG.routes || {};
   const TV_ROTATE_MS = (CFG.tvRotateSeconds || 12) * 1000;
+  const DATA_REFRESH_MS = 15000;
   const CAL_START = 7, CAL_END = 18;
 
   const ICONS = {
@@ -23,7 +25,9 @@
     clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     edit: '<svg viewBox="0 0 24 24"><path d="m4 20 4.5-1 10-10a2 2 0 0 0-3-3l-10 10L4 20Zm10-13 3 3"/></svg>',
     flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 5h11l-2 4 2 4H5"/></svg>',
-    shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.6 2.9 8 7 10 4.1-2 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>'
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.6 2.9 8 7 10 4.1-2 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>',
+    moon: '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>',
+    sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>'
   };
 
   // ---------- estado ----------
@@ -34,6 +38,7 @@
   let editingId = null;
   let tvScreen = 0;
   let lastRotate = Date.now();
+  let lastDataRefresh = Date.now();
 
   // ---------- helpers de data ----------
   const $ = (s, r = document) => r.querySelector(s);
@@ -44,6 +49,22 @@
   function mondayOf(date) { const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); const day = d.getDay() || 7; d.setDate(d.getDate() - day + 1); return d; }
   function initials(name) { return String(name || '').split(' ').filter(x => !['da', 'de', 'do', 'ep'].includes(x.toLowerCase())).map(x => x[0]).join('').slice(0, 2).toUpperCase(); }
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  // ---------- helpers de múltiplos responsáveis ----------
+  function respList(m) { return Array.isArray(m.responsibles) ? m.responsibles : (m.responsibles ? [m.responsibles] : []); }
+  function respNames(m) { return respList(m).join(', ') || 'Sem responsável'; }
+  function respAvatars(m) {
+    const list = respList(m), max = 3, shown = list.slice(0, max);
+    let html = shown.map(n => '<div class="mini-avatar" title="' + esc(n) + '">' + initials(n) + '</div>').join('');
+    if (list.length > max) html += '<div class="mini-avatar more">+' + (list.length - max) + '</div>';
+    return html || '<div class="mini-avatar">—</div>';
+  }
+  // Quando ninguém indica quem concluiu, sugere o primeiro responsável que não
+  // seja "Toda a seção" (a seção inteira não pode "ser" quem concluiu algo).
+  function fallbackCompleter(m) {
+    const person = respList(m).find(p => p !== 'Toda a seção');
+    return person || COMPLETERS[0];
+  }
 
   const STATUS_LABEL = { pendente: 'Pendente', andamento: 'Em andamento', concluida: 'Concluída', atrasada: 'Atrasada' };
   const PRIORITY_LABEL = { baixa: 'Baixa', media: 'Média', alta: 'Alta' };
@@ -87,12 +108,14 @@
       : '<div class="mission-time mono">' + m.time + '</div>';
     const right = kind === 'upcoming'
       ? '<span class="status-pill s-' + st + '">' + statusLabel(st) + '</span>'
-      : '<select class="status-select s-' + st + '" data-status="' + m.id + '">'
-        + opt('pendente', m.status) + opt('andamento', m.status) + opt('concluida', m.status) + '</select>';
+      : '<div class="status-cell">'
+        + (st === 'atrasada' ? '<span class="overdue-tag">Atrasada</span>' : '')
+        + '<select class="status-select s-' + st + '" data-status="' + m.id + '">'
+        + opt('pendente', m.status) + opt('andamento', m.status) + opt('concluida', m.status) + '</select></div>';
     return '<div class="mission-row p-' + m.priority + (kind === 'upcoming' ? ' upcoming' : '') + '" data-edit="' + m.id + '">'
       + left
       + '<div class="mission-main"><strong>' + esc(m.title) + '</strong><div class="mission-meta">' + dateLabel(m.date) + (m.requester ? ' · ' + esc(m.requester) : '') + '</div></div>'
-      + '<div class="responsible"><div class="mini-avatar">' + initials(m.responsible) + '</div><span>' + esc(m.responsible) + '</span></div>'
+      + '<div class="responsible"><div class="avatar-stack">' + respAvatars(m) + '</div><span>' + esc(respNames(m)) + '</span></div>'
       + right + '</div>';
   }
   function opt(val, cur) { return '<option value="' + val + '"' + (val === cur ? ' selected' : '') + '>' + statusLabel(val) + '</option>'; }
@@ -133,7 +156,7 @@
 
     const next = sorted(missions.filter(m => m.status !== 'concluida' && fromISO(m.date, m.time) >= now))[0] || sorted(missions.filter(m => m.status !== 'concluida'))[0];
     $('#nextMission').innerHTML = next
-      ? '<div class="next-label"><span>Próxima missão</span><i class="live-dot"></i></div><h2>' + esc(next.title) + '</h2><p>' + esc(next.notes || 'Sem observações registradas.') + '</p><div class="next-info"><div><span>Quando</span><strong>' + dateLabel(next.date) + ', ' + next.time + '</strong></div><div><span>Responsável</span><strong>' + esc(next.responsible) + '</strong></div></div><div class="countdown">' + countdownText(next) + '</div>'
+      ? '<div class="next-label"><span>Próxima missão</span><i class="live-dot"></i></div><h2>' + esc(next.title) + '</h2><p>' + esc(next.notes || 'Sem observações registradas.') + '</p><div class="next-info"><div><span>Quando</span><strong>' + dateLabel(next.date) + ', ' + next.time + '</strong></div><div><span>Responsável</span><strong>' + esc(respNames(next)) + '</strong></div></div><div class="countdown">' + countdownText(next) + '</div>'
       : '<div class="next-label"><span>Próxima missão</span></div><h2>Nenhuma missão pendente</h2><p>A seção está com o planejamento em dia.</p>';
 
     $('#progressPercent').textContent = pct + '%';
@@ -142,27 +165,40 @@
     $('#progressTotal').textContent = week.length + ' no total';
 
     const people = {};
-    missions.filter(m => m.status !== 'concluida').forEach(m => people[m.responsible] = (people[m.responsible] || 0) + 1);
+    missions.filter(m => m.status !== 'concluida').forEach(m => respList(m).forEach(p => people[p] = (people[p] || 0) + 1));
     $('#teamList').innerHTML = Object.entries(people).sort((a, b) => b[1] - a[1]).slice(0, 6)
       .map(([name, c]) => '<div class="team-row"><div class="mini-avatar">' + initials(name) + '</div><div><strong>' + esc(name) + '</strong><span>' + c + (c === 1 ? ' missão ativa' : ' missões ativas') + '</span></div><div class="team-count mono">' + c + '</div></div>').join('')
       || '<div class="empty">Sem missões ativas.</div>';
   }
 
-  function renderCalendar() {
-    const days = Array.from({ length: 7 }, (_, i) => addDays(calMonday, i));
+  // Monta o miolo do calendário (cabeçalho + grade de horários). Reaproveitado
+  // pelo calendário principal e pela tela de calendário do modo monitor.
+  // `interactive` liga os atributos de clique (editar / criar por duplo clique),
+  // desligados no modo monitor, que é somente leitura.
+  function calendarGridHTML(monday, interactive) {
+    const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
     const names = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'], today = isoLocal(new Date());
-    $('#weekLabel').textContent = dateLabel(isoLocal(days[0])) + ' — ' + dateLabel(isoLocal(days[6]));
     let html = '<div class="cal-corner"></div>';
-    days.forEach((d, i) => { const t = isoLocal(d) === today; html += '<div class="cal-head' + (t ? ' today' : '') + '">' + names[i] + '<strong>' + d.getDate() + '</strong></div>'; });
+    days.forEach((d, i) => {
+      const t = isoLocal(d) === today, we = i >= 5;
+      html += '<div class="cal-head' + (t ? ' today' : '') + (we ? ' weekend' : '') + '">' + names[i] + '<strong>' + d.getDate() + '</strong></div>';
+    });
     for (let h = CAL_START; h < CAL_END; h++) {
       html += '<div class="time-cell">' + pad(h) + ':00</div>';
-      days.forEach(d => {
-        const date = isoLocal(d), items = sorted(missions.filter(m => m.date === date && Number(m.time.slice(0, 2)) === h));
-        html += '<div class="day-cell' + (date === today ? ' today' : '') + '" data-new="' + date + '|' + pad(h) + ':00">'
-          + items.map(m => '<div class="cal-mission ' + m.priority + '" data-edit="' + m.id + '"><strong>' + m.time + ' · ' + esc(m.title) + '</strong>' + esc(m.responsible) + '</div>').join('') + '</div>';
+      days.forEach((d, i) => {
+        const date = isoLocal(d), we = i >= 5, items = sorted(missions.filter(m => m.date === date && Number(m.time.slice(0, 2)) === h));
+        const newAttr = interactive ? ' data-new="' + date + '|' + pad(h) + ':00"' : '';
+        html += '<div class="day-cell' + (date === today ? ' today' : '') + (we ? ' weekend' : '') + '"' + newAttr + '>'
+          + items.map(m => '<div class="cal-mission ' + m.priority + '"' + (interactive ? ' data-edit="' + m.id + '"' : '') + ' title="' + esc(m.time + ' · ' + m.title + ' — ' + respNames(m)) + '"><strong>' + m.time + ' · ' + esc(m.title) + '</strong><span>' + esc(respNames(m)) + '</span></div>').join('') + '</div>';
       });
     }
-    $('#calendarGrid').innerHTML = html;
+    return html;
+  }
+
+  function renderCalendar() {
+    const days = Array.from({ length: 7 }, (_, i) => addDays(calMonday, i));
+    $('#weekLabel').textContent = dateLabel(isoLocal(days[0])) + ' — ' + dateLabel(isoLocal(days[6]));
+    $('#calendarGrid').innerHTML = calendarGridHTML(calMonday, true);
   }
 
   function renderTables() {
@@ -177,7 +213,7 @@
     const st = actualStatus(m);
     return '<tr><td class="table-title"><strong>' + esc(m.title) + '</strong><span>' + esc(m.requester || 'Sem demandante') + '</span></td>'
       + '<td class="mono">' + dateLabel(m.date) + ', ' + m.time + '</td>'
-      + '<td>' + esc(m.responsible) + '</td>'
+      + '<td>' + esc(respNames(m)) + '</td>'
       + '<td><span class="badge b-' + m.priority + '">' + priorityLabel(m.priority) + '</span></td>'
       + '<td><span class="badge s-' + st + '">' + statusLabel(st) + '</span></td>'
       + '<td><div class="row-actions"><button class="small-btn" data-edit="' + m.id + '" title="Editar"><span class="icon">' + ICONS.edit + '</span></button></div></td></tr>';
@@ -187,7 +223,7 @@
     const doneTxt = done ? done.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') + ', ' + done.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
     return '<tr><td class="table-title"><strong>' + esc(m.title) + '</strong><span>' + esc(m.requester || 'Sem demandante') + '</span></td>'
       + '<td class="mono">' + dateLabel(m.date) + ', ' + m.time + '</td>'
-      + '<td>' + esc(m.completed_by || m.responsible) + '</td>'
+      + '<td>' + esc(m.completed_by || respNames(m)) + '</td>'
       + '<td class="mono">' + doneTxt + '</td>'
       + '<td class="row-actions"><button class="small-btn" data-reopen="' + m.id + '">Reabrir</button></td></tr>';
   }
@@ -207,7 +243,7 @@
       const list = sorted(missions.filter(m => m.date === today)).slice(0, 6);
       $('#tvToday').innerHTML = list.length ? list.map(m => {
         const st = actualStatus(m);
-        return '<div class="tv-mission p-' + m.priority + (st === 'concluida' ? ' done' : '') + '"><div class="t">' + m.time + '</div><div class="m"><strong>' + esc(m.title) + '</strong><span>' + esc(m.responsible) + '</span></div><span class="pill tv-pill s-' + st + '">' + statusLabel(st) + '</span></div>';
+        return '<div class="tv-mission p-' + m.priority + (st === 'concluida' ? ' done' : '') + '"><div class="t">' + m.time + '</div><div class="m"><strong>' + esc(m.title) + '</strong><span>' + esc(respNames(m)) + '</span></div><span class="pill tv-pill s-' + st + '">' + statusLabel(st) + '</span></div>';
       }).join('') : '<div class="tv-empty">Nenhuma missão para hoje. Seção em dia. ✓</div>';
     } else {
       $('#tvToday').style.display = 'none';
@@ -217,14 +253,14 @@
         const date = isoLocal(d), t = date === today;
         const items = sorted(missions.filter(m => m.date === date)).slice(0, 4);
         return '<div class="tv-day' + (t ? ' today' : '') + '"><div class="tv-day-head"><strong>' + names[i] + '</strong><span>' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '</span></div><div class="tv-day-list">'
-          + (items.map(m => '<div class="tv-chip p-' + m.priority + (m.status === 'concluida' ? ' done' : '') + '"><span class="h">' + m.time + '</span><strong>' + esc(m.title) + '</strong><span class="r">' + esc(m.responsible) + '</span></div>').join('') || '<span style="color:#6f8378;font-size:13px">—</span>')
+          + (items.map(m => '<div class="tv-chip p-' + m.priority + (m.status === 'concluida' ? ' done' : '') + '"><span class="h">' + m.time + '</span><strong>' + esc(m.title) + '</strong><span class="r">' + esc(respNames(m)) + '</span></div>').join('') || '<span style="color:#6f8378;font-size:13px">—</span>')
           + '</div></div>';
       }).join('');
     }
 
     const next = sorted(missions.filter(m => m.status !== 'concluida' && fromISO(m.date, m.time) >= now))[0] || sorted(missions.filter(m => m.status !== 'concluida'))[0];
     $('#tvNext').innerHTML = next
-      ? '<div class="label"><span>Próxima missão</span><i class="live-dot"></i></div><h2>' + esc(next.title) + '</h2><p>' + esc(next.notes || 'Sem observações registradas.') + '</p><div class="grid"><div><span>Quando</span><strong class="mono">' + dateLabel(next.date) + ', ' + next.time + '</strong></div><div><span>Responsável</span><strong>' + esc(next.responsible) + '</strong></div></div><div class="cd">' + countdownText(next) + '</div>'
+      ? '<div class="label"><span>Próxima missão</span><i class="live-dot"></i></div><h2>' + esc(next.title) + '</h2><p>' + esc(next.notes || 'Sem observações registradas.') + '</p><div class="grid"><div><span>Quando</span><strong class="mono">' + dateLabel(next.date) + ', ' + next.time + '</strong></div><div><span>Responsável</span><strong>' + esc(respNames(next)) + '</strong></div></div><div class="cd">' + countdownText(next) + '</div>'
       : '<div class="label"><span>Próxima missão</span></div><h2>Nenhuma missão pendente</h2><p>A seção está com o planejamento em dia.</p>';
 
     const { week, doneWeek, pct } = weekData();
@@ -236,6 +272,9 @@
   function cap(s) { return s.replace(/^./, c => c.toUpperCase()); }
 
   // ---------- modal ----------
+  function getResponsibles() { return Array.from(document.querySelectorAll('#f-responsible input:checked')).map(i => i.value); }
+  function setResponsibles(list) { document.querySelectorAll('#f-responsible input').forEach(i => { i.checked = (list || []).includes(i.value); }); }
+
   function openNew(date, time) {
     editingId = null;
     $('#modalTitle').textContent = 'Nova missão';
@@ -243,6 +282,7 @@
     $('#formError').textContent = '';
     const f = $('#missionForm');
     f.reset();
+    setResponsibles([]);
     f.date.value = date || isoLocal(new Date());
     f.time.value = time || '08:00';
     f.priority.value = 'media';
@@ -259,9 +299,9 @@
     $('#formError').textContent = '';
     const f = $('#missionForm');
     f.title.value = m.title; f.date.value = m.date; f.time.value = m.time;
-    f.responsible.value = m.responsible; f.priority.value = m.priority; f.status.value = m.status;
+    setResponsibles(respList(m)); f.priority.value = m.priority; f.status.value = m.status;
     f.requester.value = m.requester || ''; f.notes.value = m.notes || '';
-    f.completed_by.value = m.completed_by || (m.responsible === 'Toda a seção' ? PEOPLE[0] : m.responsible);
+    f.completed_by.value = m.completed_by || fallbackCompleter(m);
     toggleCompletedBy();
     $('#modalBackdrop').classList.add('open');
   }
@@ -273,11 +313,12 @@
     const f = e.target;
     const payload = {
       title: f.title.value.trim(), date: f.date.value, time: f.time.value,
-      responsible: f.responsible.value, priority: f.priority.value, status: f.status.value,
+      responsibles: getResponsibles(), priority: f.priority.value, status: f.status.value,
       requester: f.requester.value.trim(), notes: f.notes.value.trim(),
       completed_by: f.status.value === 'concluida' ? f.completed_by.value : null
     };
     if (!payload.title || !payload.date || !payload.time) { $('#formError').textContent = 'Preencha missão, data e horário.'; return; }
+    if (!payload.responsibles.length) { $('#formError').textContent = 'Selecione ao menos um responsável.'; return; }
     try {
       if (editingId) await api(ROUTES.update.replace('__ID__', editingId), { method: 'PUT', body: JSON.stringify(payload) });
       else await api(ROUTES.store, { method: 'POST', body: JSON.stringify(payload) });
@@ -290,9 +331,9 @@
   async function changeStatus(id, status) {
     const m = missions.find(x => x.id === id); if (!m) return;
     const payload = {
-      title: m.title, date: m.date, time: m.time, responsible: m.responsible,
+      title: m.title, date: m.date, time: m.time, responsibles: respList(m),
       priority: m.priority, status: status, requester: m.requester || '', notes: m.notes || '',
-      completed_by: status === 'concluida' ? (m.completed_by || (m.responsible === 'Toda a seção' ? PEOPLE[0] : m.responsible)) : null
+      completed_by: status === 'concluida' ? (m.completed_by || fallbackCompleter(m)) : null
     };
     try {
       await api(ROUTES.update.replace('__ID__', id), { method: 'PUT', body: JSON.stringify(payload) });
@@ -308,11 +349,11 @@
   }
   async function reopen(id) {
     const m = missions.find(x => x.id === id); if (!m) return;
-    await changeStatusRaw(id, 'pendente'); toast('“' + m.title + '” reaberta.');
+    await changeStatusRaw(id, m.previous_status || 'pendente'); toast('“' + m.title + '” reaberta.');
   }
   async function changeStatusRaw(id, status) {
     const m = missions.find(x => x.id === id); if (!m) return;
-    const payload = { title: m.title, date: m.date, time: m.time, responsible: m.responsible, priority: m.priority, status, requester: m.requester || '', notes: m.notes || '', completed_by: null };
+    const payload = { title: m.title, date: m.date, time: m.time, responsibles: respList(m), priority: m.priority, status, requester: m.requester || '', notes: m.notes || '', completed_by: null };
     await api(ROUTES.update.replace('__ID__', id), { method: 'PUT', body: JSON.stringify(payload) });
     await loadMissions(); render();
   }
@@ -336,6 +377,36 @@
     else if (document.fullscreenElement && document.exitFullscreen) { try { await document.exitFullscreen(); } catch (e) {} }
   }
 
+  // Modo monitor dedicado só ao calendário: nenhuma rotação, nenhum painel
+  // lateral — a tela inteira mostra apenas a grade da semana.
+  function renderCalendarMonitor() {
+    const now = new Date();
+    $('#calTvClock').textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    $('#calTvDate').textContent = cap(now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }));
+    const monday = mondayOf(now);
+    const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+    $('#calTvWeekLabel').textContent = dateLabel(isoLocal(weekDays[0])) + ' — ' + dateLabel(isoLocal(weekDays[6]));
+    $('#calTvGrid').innerHTML = calendarGridHTML(monday, false);
+  }
+  async function setCalendarMonitor(on) {
+    document.body.classList.toggle('calendar-monitor-mode', on);
+    if (on) { renderCalendarMonitor(); if (document.documentElement.requestFullscreen) { try { await document.documentElement.requestFullscreen(); } catch (e) {} } }
+    else if (document.fullscreenElement && document.exitFullscreen) { try { await document.exitFullscreen(); } catch (e) {} }
+  }
+
+  // ---------- modo escuro ----------
+  function applyTheme(dark) {
+    document.body.classList.toggle('theme-dark', dark);
+    $('#themeBtn').innerHTML = '<span class="icon">' + (dark ? ICONS.sun : ICONS.moon) + '</span>';
+    try { localStorage.setItem('painel-theme', dark ? 'dark' : 'light'); } catch (e) {}
+  }
+  function initTheme() {
+    let saved = null;
+    try { saved = localStorage.getItem('painel-theme'); } catch (e) {}
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(saved ? saved === 'dark' : prefersDark);
+  }
+
   function toast(text) {
     const el = $('#toast');
     $('#toastText').textContent = text;
@@ -353,6 +424,13 @@
       if (Date.now() - lastRotate >= TV_ROTATE_MS) { lastRotate = Date.now(); tvScreen = (tvScreen + 1) % 2; }
       renderTV();
     }
+    if (document.body.classList.contains('calendar-monitor-mode')) renderCalendarMonitor();
+    // Mantém o painel (e principalmente o modo monitor) sincronizado com
+    // alterações feitas por outras pessoas em outros computadores.
+    if (Date.now() - lastDataRefresh >= DATA_REFRESH_MS) {
+      lastDataRefresh = Date.now();
+      loadMissions().then(render).catch(() => {});
+    }
   }
 
   // ---------- eventos ----------
@@ -367,8 +445,11 @@
 
     $('#newMissionBtn').onclick = () => openNew();
     $('#resetBtn').onclick = resetData;
+    $('#themeBtn').onclick = () => applyTheme(!document.body.classList.contains('theme-dark'));
     $('#monitorBtn').onclick = () => setMonitor(true);
     $('#tvExit').onclick = () => setMonitor(false);
+    $('#calendarMonitorBtn').onclick = () => setCalendarMonitor(true);
+    $('#calTvExit').onclick = () => setCalendarMonitor(false);
     $('#closeModal').onclick = closeModal;
     $('#cancelBtn').onclick = closeModal;
     $('#deleteBtn').onclick = deleteMission;
@@ -394,21 +475,34 @@
       if (sel) changeStatus(Number(sel.dataset.status), sel.value);
     });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { if ($('#modalBackdrop').classList.contains('open')) closeModal(); else if (document.body.classList.contains('monitor-mode')) setMonitor(false); }
-      if (e.key.toLowerCase() === 'n' && !/input|textarea|select/i.test(e.target.tagName) && !document.body.classList.contains('monitor-mode')) openNew();
+      if (e.key === 'Escape') {
+        if ($('#modalBackdrop').classList.contains('open')) closeModal();
+        else if (document.body.classList.contains('monitor-mode')) setMonitor(false);
+        else if (document.body.classList.contains('calendar-monitor-mode')) setCalendarMonitor(false);
+      }
+      const kiosk = document.body.classList.contains('monitor-mode') || document.body.classList.contains('calendar-monitor-mode');
+      if (e.key.toLowerCase() === 'n' && !/input|textarea|select/i.test(e.target.tagName) && !kiosk) openNew();
     });
-    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('monitor-mode')) document.body.classList.remove('monitor-mode'); });
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        document.body.classList.remove('monitor-mode');
+        document.body.classList.remove('calendar-monitor-mode');
+      }
+    });
   }
 
   // ---------- init ----------
   async function init() {
-    // preenche selects de pessoas
-    ['#f-responsible', '#f-completed_by'].forEach(sel => {
-      $(sel).innerHTML = PEOPLE.map(p => '<option value="' + esc(p) + '">' + esc(p) + '</option>').join('');
-    });
+    // "Responsável" é um grupo de chips (permite marcar mais de um militar).
+    // O de "concluída por" continua sendo um select único e não inclui "Toda a
+    // seção", pois quem conclui é sempre uma pessoa específica.
+    $('#f-responsible').innerHTML = PEOPLE.map(p => '<label class="chip-option"><input type="checkbox" value="' + esc(p) + '"><span>' + esc(p) + '</span></label>').join('');
+    $('#f-completed_by').innerHTML = COMPLETERS.map(p => '<option value="' + esc(p) + '">' + esc(p) + '</option>').join('');
     $('#omName').textContent = OM_NAME; $('#omSigla').textContent = OM_SIGLA;
     $('#omNameProfile').textContent = OM_NAME;
     $('#tvOmName').textContent = OM_NAME; $('#tvOmSigla').textContent = OM_SIGLA;
+    $('#calTvName').textContent = OM_NAME; $('#calTvSigla').textContent = OM_SIGLA;
+    initTheme();
     bind();
     tick(); setInterval(tick, 1000);
     try { await loadMissions(); render(); }

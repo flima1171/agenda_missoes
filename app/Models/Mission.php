@@ -15,13 +15,14 @@ class Mission extends Model
         'title',
         'date',
         'time',
-        'responsible',
+        'responsibles',
         'priority',
         'status',
         'requester',
         'notes',
         'completed_by',
         'completed_at',
+        'previous_status',
     ];
 
     /**
@@ -35,6 +36,7 @@ class Mission extends Model
             // A data é guardada como texto "AAAA-MM-DD" para casar 1:1 com o front.
             'date' => 'string',
             'completed_at' => 'datetime',
+            'responsibles' => 'array',
         ];
     }
 }

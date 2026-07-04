@@ -21,7 +21,8 @@ class MissionController extends Controller
             'title' => ['required', 'string', 'max:120'],
             'date' => ['required', 'date_format:Y-m-d'],
             'time' => ['required', 'date_format:H:i'],
-            'responsible' => ['required', 'string', 'max:80'],
+            'responsibles' => ['required', 'array', 'min:1'],
+            'responsibles.*' => ['string', 'max:80'],
             'priority' => ['required', Rule::in(['baixa', 'media', 'alta'])],
             'status' => ['required', Rule::in(['pendente', 'andamento', 'concluida'])],
             'requester' => ['nullable', 'string', 'max:80'],
@@ -39,13 +40,23 @@ class MissionController extends Controller
     private function applyCompletion(array $data, ?Mission $atual = null): array
     {
         if (($data['status'] ?? null) === 'concluida') {
+            // Quando ninguém é indicado explicitamente, usa o primeiro responsável
+            // que não seja "Toda a seção" (não faz sentido a seção inteira "ser" quem concluiu).
+            $responsibles = $data['responsibles'] ?? [];
+            $fallback = collect($responsibles)->first(fn ($r) => $r !== 'Toda a seção');
+
             $data['completed_by'] = $data['completed_by']
-                ?: ($atual?->completed_by
-                    ?: ($data['responsible'] === 'Toda a seção' ? null : $data['responsible']));
+                ?: ($atual?->completed_by ?: $fallback);
             $data['completed_at'] = $atual?->completed_at ?? now();
+            // Guarda a situação anterior (só na primeira vez que é concluída) para
+            // o "Reabrir" conseguir restaurá-la em vez de sempre virar "pendente".
+            $data['previous_status'] = $atual && $atual->status !== 'concluida'
+                ? $atual->status
+                : $atual?->previous_status;
         } else {
             $data['completed_by'] = null;
             $data['completed_at'] = null;
+            $data['previous_status'] = null;
         }
 
         return $data;

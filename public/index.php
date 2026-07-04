@@ -2,6 +2,10 @@
 
 use Illuminate\Http\Request;
 
+// Silencia avisos de depreciação de constantes PDO renomeadas no PHP 8.5,
+// disparados pelo config/database.php do próprio framework (vendor).
+error_reporting(E_ALL & ~E_DEPRECATED);
+
 define('LARAVEL_START', microtime(true));
 
 // Determine if the application is in maintenance mode...

@@ -44,6 +44,7 @@
                 <div class="title-block"><h1 id="pageTitle">Bom dia, Seção.</h1><p id="todayText">Carregando…</p></div>
                 <div class="top-actions">
                     <div class="clock"><strong class="mono" id="clock">--:--</strong><span>Horário local</span></div>
+                    <button class="icon-btn" id="themeBtn" title="Alternar modo escuro"></button>
                     <button class="icon-btn" id="resetBtn" title="Restaurar dados de demonstração"><span class="icon" data-icon="refresh"></span></button>
                     <button class="primary-btn" id="newMissionBtn"><span class="icon" data-icon="plus"></span><span>Nova missão</span></button>
                 </div>
@@ -82,6 +83,11 @@
                 <div class="section-toolbar">
                     <div><h2>Calendário de missões</h2></div>
                     <div class="week-nav"><button id="prevWeek">‹</button><strong id="weekLabel"></strong><button id="nextWeek">›</button><button id="todayWeek">Hoje</button></div>
+                </div>
+                <div class="cal-legend">
+                    <span class="cal-legend-item"><i class="dot today"></i>Hoje</span>
+                    <span class="cal-legend-item"><i class="dot weekend"></i>Fim de semana</span>
+                    <button class="text-btn cal-monitor-btn" id="calendarMonitorBtn">Ativar modo monitor do calendário</button>
                 </div>
                 <article class="card calendar"><div class="calendar-grid" id="calendarGrid"></div></article>
             </section>
@@ -139,6 +145,26 @@
         </div>
     </div>
 
+    {{-- ================= MODO MONITOR DO CALENDÁRIO (só o calendário) ================= --}}
+    <div class="cal-tv">
+        <header class="tv-head">
+            <div class="tv-brand">
+                <div class="mark" id="calTvSigla">25º BC</div>
+                <div><strong>Calendário da Seção</strong><span id="calTvName">25º Batalhão de Caçadores</span></div>
+            </div>
+            <div class="tv-clock"><strong class="mono" id="calTvClock">--:--</strong><span id="calTvDate"></span></div>
+        </header>
+        <div class="tv-cal-legend">
+            <strong class="mono" id="calTvWeekLabel"></strong>
+            <span class="tv-cal-legend-item"><i class="dot today"></i>Hoje</span>
+            <span class="tv-cal-legend-item"><i class="dot weekend"></i>Fim de semana</span>
+        </div>
+        <div class="tv-cal-scroll">
+            <div class="tv-calendar-grid" id="calTvGrid"></div>
+        </div>
+        <button class="tv-exit" id="calTvExit">Sair do modo monitor (Esc)</button>
+    </div>
+
     {{-- ============================ MODAL ============================ --}}
     <div class="modal-backdrop" id="modalBackdrop">
         <div class="modal" role="dialog" aria-modal="true">
@@ -148,7 +174,7 @@
                     <div class="field full"><label for="f-title">Missão *</label><input id="f-title" name="title" required maxlength="120" placeholder="Ex.: VC — Verificação de Cumprimento"></div>
                     <div class="field"><label for="f-date">Data *</label><input id="f-date" name="date" type="date" required></div>
                     <div class="field"><label for="f-time">Horário *</label><input id="f-time" name="time" type="time" required></div>
-                    <div class="field"><label for="f-responsible">Responsável *</label><select id="f-responsible" name="responsible" required></select></div>
+                    <div class="field full"><label>Responsável(is) *</label><div class="chip-group" id="f-responsible"></div></div>
                     <div class="field"><label for="f-priority">Prioridade</label><select id="f-priority" name="priority"><option value="baixa">Baixa</option><option value="media" selected>Média</option><option value="alta">Alta</option></select></div>
                     <div class="field"><label for="f-status">Situação</label><select id="f-status" name="status"><option value="pendente">Pendente</option><option value="andamento">Em andamento</option><option value="concluida">Concluída</option></select></div>
                     <div class="field"><label for="f-requester">Demandante</label><input id="f-requester" name="requester" maxlength="80" placeholder="Ex.: Cmt do 25º BC"></div>
@@ -168,21 +194,16 @@
     {{-- ============================ TOAST ============================ --}}
     <div class="toast" id="toast"><span class="icon" data-icon="check"></span><span id="toastText">Feito.</span></div>
 
+    @php
+        $painelPeople = ['Asp Araújo', '3º Sgt Rodrigues Silva', 'Cb Luide', 'Sd EP Jones', 'Sd EP Ferreira Lima', 'Sd EP Edilson', 'Toda a seção'];
+    @endphp
     <script>
         window.__PAINEL__ = {
             omName: @json(config('app.name') === 'Agenda de Missões' ? '25º Batalhão de Caçadores' : config('app.name')),
             omSigla: '25º BC',
             csrf: @json(csrf_token()),
             tvRotateSeconds: 12,
-            people: @json([
-                'Asp Araújo',
-                '3º Sgt Rodrigues Silva',
-                'Cb Luide',
-                'Sd EP Jones',
-                'Sd EP Ferreira Lima',
-                'Sd EP Edilson',
-                'Toda a seção',
-            ]),
+            people: @json($painelPeople),
             routes: {
                 index: @json(route('missions.index')),
                 store: @json(route('missions.store')),
