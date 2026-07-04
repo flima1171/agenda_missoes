@@ -1,0 +1,25 @@
+<div class="resp-rows" id="f-responsible">
+    @foreach ($rows as $i => $value)
+        <div class="resp-row" wire:key="resp-row-{{ $i }}">
+            <select wire:model.live="rows.{{ $i }}">
+                <option value="">Selecione um militar…</option>
+                @foreach ($this->optionsFor($i) as $person)
+                    <option value="{{ $person }}">{{ $person }}</option>
+                @endforeach
+            </select>
+            @if (count($rows) > 1)
+                <button type="button" class="resp-remove" wire:click="removeRow({{ $i }})" title="Remover">×</button>
+            @endif
+            @if ($value !== '')
+                {{-- Ponte para o formulário de missão em vanilla JS (só até a Fase 5
+                     migrar o modal inteiro para Livewire): ele lê os responsáveis
+                     escolhidos com `#f-responsible input:checked`, então mantemos
+                     esse contrato aqui em vez de reescrever o JS agora. --}}
+                <input type="checkbox" checked hidden value="{{ $value }}">
+            @endif
+        </div>
+    @endforeach
+    @if ($this->canAddRow())
+        <button type="button" class="text-btn resp-add" wire:click="addRow">+ Adicionar responsável</button>
+    @endif
+</div>

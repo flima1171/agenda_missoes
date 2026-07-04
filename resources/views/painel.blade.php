@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    @livewireStyles
 </head>
 <body>
     {{-- ============================ PAINEL (admin) ============================ --}}
@@ -171,6 +172,17 @@
         <button class="tv-exit" id="calTvExit">Sair do modo monitor (Esc)</button>
     </div>
 
+    @php
+        // Lista de responsáveis: militares ATIVOS cadastrados em /militares (tabela
+        // `militares`), na ordem configurada por lá, + "Toda a seção" (não é um
+        // militar, é uma opção fixa pra atribuir a missão à seção inteira).
+        $painelPeople = \App\Models\Militar::ativos()
+            ->get()
+            ->map(fn ($militar) => $militar->nomeExibicao())
+            ->push('Toda a seção')
+            ->all();
+    @endphp
+
     {{-- ============================ MODAL ============================ --}}
     <div class="modal-backdrop" id="modalBackdrop">
         <div class="modal" role="dialog" aria-modal="true">
@@ -180,7 +192,7 @@
                     <div class="field full"><label for="f-title">Missão *</label><input id="f-title" name="title" required maxlength="120" placeholder="Ex.: VC — Verificação de Cumprimento"></div>
                     <div class="field"><label for="f-date">Data *</label><input id="f-date" name="date" type="date" required></div>
                     <div class="field"><label for="f-time">Horário *</label><input id="f-time" name="time" type="time" required></div>
-                    <div class="field full"><label>Responsável(is) *</label><div class="chip-group" id="f-responsible"></div></div>
+                    <div class="field full"><label>Responsável(is) *</label><livewire:responsible-selector :people="$painelPeople" /></div>
                     <div class="field"><label for="f-priority">Prioridade</label><select id="f-priority" name="priority"><option value="baixa">Baixa</option><option value="media" selected>Média</option><option value="alta">Alta</option></select></div>
                     <div class="field"><label for="f-status">Situação</label><select id="f-status" name="status"><option value="pendente">Pendente</option><option value="andamento">Em andamento</option><option value="concluida">Concluída</option></select></div>
                     <div class="field"><label for="f-requester">Demandante</label><input id="f-requester" name="requester" maxlength="80" placeholder="Ex.: Cmt do 25º BC"></div>
@@ -200,16 +212,6 @@
     {{-- ============================ TOAST ============================ --}}
     <div class="toast" id="toast"><span class="icon" data-icon="check"></span><span id="toastText">Feito.</span></div>
 
-    @php
-        // Lista de responsáveis: militares ATIVOS cadastrados em /militares (tabela
-        // `militares`), na ordem configurada por lá, + "Toda a seção" (não é um
-        // militar, é uma opção fixa pra atribuir a missão à seção inteira).
-        $painelPeople = \App\Models\Militar::ativos()
-            ->get()
-            ->map(fn ($militar) => $militar->nomeExibicao())
-            ->push('Toda a seção')
-            ->all();
-    @endphp
     <script>
         window.__PAINEL__ = {
             omName: @json(config('app.name') === 'Agenda de Missões' ? '25º Batalhão de Caçadores' : config('app.name')),
@@ -227,5 +229,6 @@
         };
     </script>
     <script src="{{ asset('js/app.js') }}"></script>
+    @livewireScripts
 </body>
 </html>

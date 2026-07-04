@@ -272,8 +272,14 @@
   function cap(s) { return s.replace(/^./, c => c.toUpperCase()); }
 
   // ---------- modal ----------
+  // O campo "Responsável(is)" agora é o componente Livewire ResponsibleSelector
+  // (seletor progressivo: um por vez + botão "+", Fase 4). Ele renderiza um
+  // checkbox escondido e marcado por responsável escolhido dentro de
+  // #f-responsible, então a leitura no envio do formulário continua igual.
+  // Para popular o componente (nova missão = vazio; editar = responsáveis
+  // atuais), despachamos um evento que o Livewire escuta.
   function getResponsibles() { return Array.from(document.querySelectorAll('#f-responsible input:checked')).map(i => i.value); }
-  function setResponsibles(list) { document.querySelectorAll('#f-responsible input').forEach(i => { i.checked = (list || []).includes(i.value); }); }
+  function setResponsibles(list) { if (window.Livewire) Livewire.dispatch('set-responsibles', { list: list || [] }); }
 
   function openNew(date, time) {
     editingId = null;
@@ -493,10 +499,9 @@
 
   // ---------- init ----------
   async function init() {
-    // "Responsável" é um grupo de chips (permite marcar mais de um militar).
-    // O de "concluída por" continua sendo um select único e não inclui "Toda a
-    // seção", pois quem conclui é sempre uma pessoa específica.
-    $('#f-responsible').innerHTML = PEOPLE.map(p => '<label class="chip-option"><input type="checkbox" value="' + esc(p) + '"><span>' + esc(p) + '</span></label>').join('');
+    // "Responsável" é o componente Livewire ResponsibleSelector (ver acima).
+    // O de "concluída por" continua sendo um select único em JS puro e não
+    // inclui "Toda a seção", pois quem conclui é sempre uma pessoa específica.
     $('#f-completed_by').innerHTML = COMPLETERS.map(p => '<option value="' + esc(p) + '">' + esc(p) + '</option>').join('');
     $('#omName').textContent = OM_NAME; $('#omSigla').textContent = OM_SIGLA;
     $('#omNameProfile').textContent = OM_NAME;

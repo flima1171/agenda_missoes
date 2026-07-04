@@ -26,10 +26,14 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 3 concluída.
-- **PRÓXIMA TAREFA:** Fase 4 — Seletor de responsáveis progressivo (um seletor +
-  botão "+", sem JS à mão). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 4.
-- **Depois dela:** Fase 5 — Migrar a interface para Livewire, tela por tela.
+- **Fase em andamento:** Fase 4 concluída.
+- **PRÓXIMA TAREFA:** Fase 5 — Migrar a interface para Livewire, tela por tela
+  (visão geral, calendário, tabela "todas as missões", concluídas, modal de
+  missão, modo monitor), reaproveitando `public/css/app.css`, removendo
+  `public/js/app.js` só depois de provar paridade tela a tela. Detalhes em
+  `.claude/prompts/roadmap-mestre.md` › FASE 5.
+- **Depois dela:** Fase 6 — Corrigir bug do calendário (missões fora de
+  07h–18h somem).
 
 ---
 
@@ -193,6 +197,95 @@
   na faixa afetada por um CVE de CRLF injection na regra de validação `email`
   padrão) — não é usado ativamente neste app (sem autenticação), mas vale
   avaliar upgrade; não fiz nada a respeito aqui, só registrei a tarefa.
+- **2026-07-04** — **Fase 4 concluída — Seletor de responsáveis progressivo.**
+  **Inconsistência encontrada e resolvida ANTES de codar (perguntei ao
+  usuário em vez de decidir sozinho, regra 1/8 anti-alucinação):** o roadmap
+  descreve a Fase 4 como algo que roda dentro de "o formulário de missão
+  (Livewire)", mas conferi de verdade `painel.blade.php` e `public/js/app.js`
+  e o modal "Nova missão" continua 100% em JS puro — a migração dele pra
+  Livewire só está prevista na Fase 5 (que vem DEPOIS da 4 no próprio
+  roadmap). Perguntei ao usuário como resolver; ele escolheu a opção
+  "componente Livewire isolado" (mesmo padrão da Fase 3: uma ilha de Livewire
+  dentro da página ainda majoritariamente JS, sem adiantar a Fase 5).
+  Antes de mexer, li de verdade `painel.blade.php` (`#f-responsible` linha
+  183, bloco `$painelPeople` perto do fim do arquivo) e `public/js/app.js`
+  (`getResponsibles()`/`setResponsibles()` linha 275-276, injeção de chips
+  `#f-responsible` linha 499, evento `submitForm` linha 311-329) pra entender
+  o contrato exato entre o JS do formulário e o campo de responsáveis. Também
+  li o código-fonte do pacote `livewire/livewire` dentro de `vendor/` (não
+  documentação externa, já que não há acesso à internet neste ambiente) pra
+  confirmar sem chutar: `Livewire\Attributes\On` existe
+  (`vendor/livewire/livewire/src/Attributes/On.php`); despacho de evento do
+  JS puro pro Livewire é `window.Livewire.dispatch(nome, {chave: valor})`
+  (`dispatchGlobal` em `vendor/livewire/livewire/dist/livewire.js`); os
+  parâmetros do evento chegam ao método PHP por NOME do parâmetro, não
+  posição (`SupportEvents.php`: `wrap($this->component)->$method(...$params)`
+  com `$params` associativo — spread de array associativo vira argumento
+  nomeado a partir do PHP 8+, e o projeto é PHP 8.2); e que bind de array por
+  índice (`wire:model.live="rows.0"`) é suportado nativamente (dot-path em
+  `HandleComponents.php`).
+  Criado componente `App\Livewire\ResponsibleSelector`
+  (`app/Livewire/ResponsibleSelector.php` + `resources/views/livewire/
+  responsible-selector.blade.php`, via `php artisan make:livewire
+  ResponsibleSelector --class`): array `$rows` (uma posição por linha
+  escolhida, sempre começando com uma vazia), `addRow()`/`removeRow()`,
+  `optionsFor($i)` (esconde de cada `<select>` quem já foi escolhido em OUTRA
+  linha, mas mantém a opção atual da própria linha pra não sumir), e
+  `canAddRow()` (só mostra "+ Adicionar responsável" quando todas as linhas
+  atuais estão preenchidas e ainda sobra gente pra escolher). Escuta o evento
+  `set-responsibles` (`#[On('set-responsibles')]`) pra ser resetado toda vez
+  que o modal abre — necessário porque o componente Livewire persiste na
+  página entre uma abertura de modal e outra (SPA-like), então sem isso a
+  seleção de uma missão vazaria pra próxima.
+  **Ponte com o JS existente (documentada em comentário no código, só até a
+  Fase 5 migrar o modal inteiro):** a view do componente renderiza, pra cada
+  responsável escolhido (valor não vazio), um `<input type="checkbox" checked
+  hidden>` dentro do próprio `id="f-responsible"` — isso preserva o contrato
+  que `getResponsibles()` já lia (`#f-responsible input:checked`) SEM
+  precisar tocar nessa função. Já `setResponsibles(list)` mudou: em vez de
+  marcar `.checked` em checkboxes estáticos (que não existem mais), agora
+  despacha `Livewire.dispatch('set-responsibles', { list })`, chamado tanto
+  em `openNew()` (lista vazia) quanto em `openEdit()` (responsáveis da missão).
+  `painel.blade.php`: `@livewireStyles`/`@livewireScripts` adicionados; bloco
+  `@php $painelPeople = ...` movido pra antes do modal (antes ficava perto do
+  `<script>` no fim do arquivo, tarde demais pro `<livewire:responsible-
+  selector :people="$painelPeople" />` que agora fica dentro do campo
+  "Responsável(is)"); `<div class="chip-group" id="f-responsible"></div>`
+  virou `<livewire:responsible-selector :people="$painelPeople" />`. `app.js`:
+  removida a linha que injetava os checkboxes de chip em `#f-responsible` no
+  `init()` (o Livewire renderiza agora). `app.css`: removidas as regras
+  `.chip-group`/`.chip-option` (ficaram órfãs, sem nenhum uso no projeto
+  depois da troca — confirmado com grep antes de apagar) e criadas
+  `.resp-rows`/`.resp-row`/`.resp-remove`/`.resp-add` (+ variante
+  `body.theme-dark`), reaproveitando as variáveis de cor existentes
+  (`var(--red)` etc.), conforme a decisão travada de reaproveitar o CSS atual.
+  **VERIFICADO no navegador** (`preview_start`, porta 8011): abri "Nova
+  missão", escolhi um militar no primeiro seletor, cliquei "+ Adicionar
+  responsável" (só aparece depois que a linha atual está preenchida e ainda
+  sobra gente), a segunda linha excluiu corretamente quem já tinha sido
+  escolhido na primeira; removi a segunda linha com o "x" e confirmei que o
+  checkbox escondido ficou só com o valor certo. Salvei a missão de teste e
+  conferi a resposta da API: `responsibles: ["Cb Luide"]` — persistiu certo.
+  Abri para EDITAR uma missão existente com 2 responsáveis ("Inspeção das
+  instalações") e confirmei que o componente populou as DUAS linhas com os
+  valores certos (sem vazar a seleção do teste anterior, prova de que o
+  evento `set-responsibles` reresetando o componente a cada abertura
+  funciona). Testado em mobile/tablet/desktop (`preview_resize`): 1 e 2 linhas
+  cabem sem overflow em 375px; achei uma peculiaridade da ferramenta de
+  automação do preview (um clique via `preview_click` no botão "+" não
+  disparou o `wire:click` logo depois de um resize de viewport, enquanto
+  `.click()` via JS no mesmo elemento funcionou imediatamente) — **não é bug
+  do app**, confirmei rodando a mesma ação via JS puro com sucesso. Testado
+  também modo escuro: `.resp-remove` aplica as cores corretas
+  (`background: rgb(34,43,38)`, conferido via `preview_inspect`). Sem erros
+  de console em nenhum momento. Ao final, restaurei os dados de demonstração
+  (`resetData`/`#resetBtn`, ambiente `local`) pra não deixar a missão de teste
+  no banco. Rodei `vendor/bin/pint --test` nos arquivos novos (passou) e
+  `php -l` no componente (sem erros de sintaxe).
+  **PENDENTE:** nenhuma. `php artisan test` continua quebrado
+  (`Could not read XML from file phpunit.xml.dist`) mas confirmei via `git
+  stash` que isso já falhava ANTES desta fase (pré-existente, fora do escopo
+  daqui).
 
 ---
 
@@ -205,7 +298,7 @@
       de proxy, systemd, conferir extensão pdo_sqlite).
 - [x] **Fase 3** — Cadastro de militares: tabela `militares` + CRUD Livewire (inativar em
       vez de apagar; missões guardam nome como snapshot, não reescrevem histórico).
-- [ ] **Fase 4** — Seletor de responsáveis progressivo (um + botão "+"), sem JS à mão.
+- [x] **Fase 4** — Seletor de responsáveis progressivo (um + botão "+"), sem JS à mão.
 - [ ] **Fase 5** — Migrar a interface para Livewire, tela por tela, reaproveitando o CSS.
 - [ ] **Fase 6** — Corrigir bug do calendário (missões fora de 07h–18h somem).
 
@@ -219,7 +312,17 @@
 - Rotas da API interna: `routes/web.php` (`/missions` CRUD + `/missions/reset`).
 - Controller: `app/Http/Controllers/MissionController.php` (método `reset()` apaga TUDO).
 - Model: `app/Models/Mission.php` (campo `responsibles` = array de strings).
-- Interface ATUAL toda em JS: `public/js/app.js`. CSS: `public/css/app.css`.
+- Interface ATUAL majoritariamente em JS: `public/js/app.js`. CSS:
+  `public/css/app.css`. EXCEÇÃO (Fase 4): o campo "Responsável(is)" do modal
+  de missão é o componente Livewire `App\Livewire\ResponsibleSelector`
+  (+ `resources/views/livewire/responsible-selector.blade.php`), embutido em
+  `painel.blade.php` como `<livewire:responsible-selector :people="..." />`.
+  Ponte com o JS: o componente renderiza checkboxes escondidos (marcados) por
+  responsável escolhido, então `getResponsibles()` (app.js) continua lendo
+  `#f-responsible input:checked` sem mudança; `setResponsibles(list)` agora
+  despacha `Livewire.dispatch('set-responsibles', { list })` em vez de mexer
+  no DOM direto. Isso é transitório — a Fase 5 deve migrar o modal inteiro e
+  então essa ponte pode ser simplificada/removida.
 - View do painel: `resources/views/painel.blade.php`. `$painelPeople` (~linha 200)
   NÃO é mais um array fixo — vem de `\App\Models\Militar::ativos()` + `push('Toda a
   seção')`, injetado via `window.__PAINEL__` do mesmo jeito de antes.
