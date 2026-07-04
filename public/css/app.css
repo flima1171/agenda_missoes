@@ -27,6 +27,12 @@ body {
   color: var(--text);
   letter-spacing: -.011em;
 }
+/* Fase 5: o modo escuro agora alterna a classe .theme-dark num <div> (.painel-root)
+   em vez do <body> (o <body> virou só o wrapper do componente Livewire). A cor de
+   texto herdada do <body> ficava "congelada" no valor claro porque `color` é uma
+   propriedade herdada — precisa reafirmar `var(--text)` na raiz do componente pra
+   ela ser reavaliada dentro do escopo onde .theme-dark realmente muda as variáveis. */
+.painel-root { color: var(--text); background: var(--bg); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 h1, h2, h3 { margin: 0; }
@@ -246,8 +252,8 @@ form { padding: 20px 23px 23px; }
 
 /* ---------------- TV / modo monitor ---------------- */
 .tv { display: none; min-height: 100vh; flex-direction: column; padding: 38px 52px 30px; color: #e8efe9; background: radial-gradient(circle at 85% -10%, rgba(78,132,101,.22), transparent 45%), #0b1310; }
-body.monitor-mode .app { display: none; }
-body.monitor-mode .tv { display: flex; }
+.painel-root.monitor-mode .app { display: none; }
+.painel-root.monitor-mode .tv { display: flex; }
 .tv-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; padding-bottom: 26px; border-bottom: 1px solid rgba(255,255,255,.09); }
 .tv-brand { display: flex; align-items: center; gap: 14px; }
 .tv-brand .mark { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: #2c5843; font-family: var(--mono); font-size: 14px; font-weight: 800; color: #fff; }
@@ -294,8 +300,8 @@ body.monitor-mode .tv { display: flex; }
 .tv-empty { padding: 60px 30px; text-align: center; color: #7d9284; font-size: 22px; border: 1px dashed rgba(255,255,255,.15); border-radius: 18px; }
 
 .cal-tv { display: none; min-height: 100vh; flex-direction: column; padding: 38px 52px 30px; color: #e8efe9; background: radial-gradient(circle at 85% -10%, rgba(78,132,101,.22), transparent 45%), #0b1310; }
-body.calendar-monitor-mode .app { display: none; }
-body.calendar-monitor-mode .cal-tv { display: flex; }
+.painel-root.calendar-monitor-mode .app { display: none; }
+.painel-root.calendar-monitor-mode .cal-tv { display: flex; }
 .tv-cal-scroll { flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto; }
 .tv-cal-legend { display: flex; align-items: center; gap: 20px; margin: 24px 0 16px; flex-wrap: wrap; }
 .tv-cal-legend strong { font-size: 16px; color: #cfe0d5; margin-right: 4px; }
@@ -401,7 +407,7 @@ body.calendar-monitor-mode .cal-tv { display: flex; }
 
 /* ---------------- modo escuro ---------------- */
 /* Afeta só o painel (.app) — os modos monitor/TV já são escuros por padrão. */
-body.theme-dark {
+.painel-root.theme-dark {
   --bg: #141a17;
   --surface: #1c2420;
   --surface-soft: #222b26;
@@ -413,43 +419,43 @@ body.theme-dark {
   --red-soft: rgba(184,65,56,.24);
   --blue-soft: rgba(55,106,147,.26);
 }
-body.theme-dark .icon-btn { color: #b7c6bd; }
-body.theme-dark .icon-btn:hover { background: #26302b; }
-body.theme-dark .mission-row::before { background: #454f49; }
-body.theme-dark .responsible { color: #a9b8b0; }
-body.theme-dark .segment.active { background: #2c3630; }
-body.theme-dark .week-nav button { background: #1c2420; color: #cdd8d1; }
-body.theme-dark .week-nav button:hover { background: #26302b; }
-body.theme-dark .cal-head.weekend { background: #232c27; color: #8a988f; }
-body.theme-dark .cal-head.weekend strong { color: #cfd9d2; }
-body.theme-dark .day-cell { background: #1c2420; }
-body.theme-dark .day-cell.weekend { background: #202822; }
-body.theme-dark .cal-mission { color: #bfe3cd; }
-body.theme-dark .cal-mission.alta { color: #f3c2bc; }
-body.theme-dark .cal-mission.media { color: #f3dba8; }
-body.theme-dark .small-btn { background: #1c2420; color: #b7c6bd; }
-body.theme-dark .small-btn:hover { background: #26302b; }
-body.theme-dark .modal { background: #1c2420; }
-body.theme-dark .field label { color: #a9b8b0; }
-body.theme-dark .field input, body.theme-dark .field select, body.theme-dark .field textarea { background: #222b26; border-color: #333e38; color: #eef1ee; }
-body.theme-dark .resp-remove { background: #222b26; border-color: #333e38; color: #cdd8d1; }
-body.theme-dark .resp-remove:hover { border-color: var(--red); color: var(--red); }
-body.theme-dark .secondary-btn { background: #1c2420; color: #cdd8d1; border-color: #333e38; }
-body.theme-dark .danger-btn { border-color: #4d2e2a; }
-body.theme-dark .s-pendente { color: #f2d9a0; }
-body.theme-dark .s-andamento { color: #a9cbe8; }
-body.theme-dark .s-concluida { color: #a9d8bc; }
-body.theme-dark .s-atrasada { color: #f2b0a9; }
-body.theme-dark .b-alta { color: #f2b0a9; }
-body.theme-dark .b-media { color: #f2d9a0; }
-body.theme-dark .b-baixa { color: #a9d8bc; }
-body.theme-dark .overdue-tag { color: #f2b0a9; }
-body.theme-dark .tone-green { color: #7fc79c; }
-body.theme-dark .tone-amber { color: #e3b568; }
-body.theme-dark .tone-red { color: #e59089; }
+.painel-root.theme-dark .icon-btn { color: #b7c6bd; }
+.painel-root.theme-dark .icon-btn:hover { background: #26302b; }
+.painel-root.theme-dark .mission-row::before { background: #454f49; }
+.painel-root.theme-dark .responsible { color: #a9b8b0; }
+.painel-root.theme-dark .segment.active { background: #2c3630; }
+.painel-root.theme-dark .week-nav button { background: #1c2420; color: #cdd8d1; }
+.painel-root.theme-dark .week-nav button:hover { background: #26302b; }
+.painel-root.theme-dark .cal-head.weekend { background: #232c27; color: #8a988f; }
+.painel-root.theme-dark .cal-head.weekend strong { color: #cfd9d2; }
+.painel-root.theme-dark .day-cell { background: #1c2420; }
+.painel-root.theme-dark .day-cell.weekend { background: #202822; }
+.painel-root.theme-dark .cal-mission { color: #bfe3cd; }
+.painel-root.theme-dark .cal-mission.alta { color: #f3c2bc; }
+.painel-root.theme-dark .cal-mission.media { color: #f3dba8; }
+.painel-root.theme-dark .small-btn { background: #1c2420; color: #b7c6bd; }
+.painel-root.theme-dark .small-btn:hover { background: #26302b; }
+.painel-root.theme-dark .modal { background: #1c2420; }
+.painel-root.theme-dark .field label { color: #a9b8b0; }
+.painel-root.theme-dark .field input, .painel-root.theme-dark .field select, .painel-root.theme-dark .field textarea { background: #222b26; border-color: #333e38; color: #eef1ee; }
+.painel-root.theme-dark .resp-remove { background: #222b26; border-color: #333e38; color: #cdd8d1; }
+.painel-root.theme-dark .resp-remove:hover { border-color: var(--red); color: var(--red); }
+.painel-root.theme-dark .secondary-btn { background: #1c2420; color: #cdd8d1; border-color: #333e38; }
+.painel-root.theme-dark .danger-btn { border-color: #4d2e2a; }
+.painel-root.theme-dark .s-pendente { color: #f2d9a0; }
+.painel-root.theme-dark .s-andamento { color: #a9cbe8; }
+.painel-root.theme-dark .s-concluida { color: #a9d8bc; }
+.painel-root.theme-dark .s-atrasada { color: #f2b0a9; }
+.painel-root.theme-dark .b-alta { color: #f2b0a9; }
+.painel-root.theme-dark .b-media { color: #f2d9a0; }
+.painel-root.theme-dark .b-baixa { color: #a9d8bc; }
+.painel-root.theme-dark .overdue-tag { color: #f2b0a9; }
+.painel-root.theme-dark .tone-green { color: #7fc79c; }
+.painel-root.theme-dark .tone-amber { color: #e3b568; }
+.painel-root.theme-dark .tone-red { color: #e59089; }
 
 /* Tela de militares (Fase 3): reaproveita .primary-btn, mas aqui o texto é o
    rótulo do formulário (não um ícone), então não pode virar botão quadrado
    no mobile como a regra de .primary-btn da barra superior do painel faz. */
 #militares-page .primary-btn { width: auto; justify-content: flex-start; }
-body.theme-dark .tone-blue { color: #8db4d6; }
+.painel-root.theme-dark .tone-blue { color: #8db4d6; }

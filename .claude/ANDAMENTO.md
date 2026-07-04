@@ -26,14 +26,10 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 4 concluída.
-- **PRÓXIMA TAREFA:** Fase 5 — Migrar a interface para Livewire, tela por tela
-  (visão geral, calendário, tabela "todas as missões", concluídas, modal de
-  missão, modo monitor), reaproveitando `public/css/app.css`, removendo
-  `public/js/app.js` só depois de provar paridade tela a tela. Detalhes em
-  `.claude/prompts/roadmap-mestre.md` › FASE 5.
-- **Depois dela:** Fase 6 — Corrigir bug do calendário (missões fora de
-  07h–18h somem).
+- **Fase em andamento:** Fase 5 concluída.
+- **PRÓXIMA TAREFA:** Fase 6 — Corrigir bug do calendário (missões fora de
+  07h–18h somem). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 6.
+- **Depois dela:** roadmap sem mais fases planejadas — reavaliar com o usuário.
 
 ---
 
@@ -286,6 +282,131 @@
   (`Could not read XML from file phpunit.xml.dist`) mas confirmei via `git
   stash` que isso já falhava ANTES desta fase (pré-existente, fora do escopo
   daqui).
+- **2026-07-04** — **Fase 5 concluída — Migração completa da interface para
+  Livewire.** Antes de mexer, li de verdade `painel.blade.php` (234 linhas) e
+  `public/js/app.js` (518 linhas) inteiros pra entender TODO o contrato: render
+  do dashboard/calendário/tabelas/modal/TV, cálculo de "atrasada", contagem de
+  progresso da semana, avatares, countdown da próxima missão, rotação do modo
+  monitor (12s) e do modo monitor do calendário — nada foi migrado sem antes
+  achar a função/trecho correspondente no JS antigo.
+  **Arquitetura escolhida:** UM componente Livewire full-page-like,
+  `App\Livewire\Painel` (`app/Livewire/Painel.php` + `resources/views/
+  livewire/painel.blade.php`), embutido via `<livewire:painel />` dentro de
+  `resources/views/painel.blade.php` (que virou um shell finíssimo, só
+  `<head>`/`@livewireStyles`/`@livewireScripts` + a ponte de JS descrita
+  abaixo) — segue o mesmo padrão de `militares.blade.php` (Fase 3), não uma
+  rota-componente Livewire nativa, por consistência com o que já existia.
+  `render()` pré-calcula TUDO em "view models" (arrays PHP simples: stats,
+  linhas de missão, grade do calendário, dados do TV etc.) e a view só
+  exibe — nenhum método é chamado de dentro de `@include`, pra não depender de
+  `$this` estar disponível em partials inclusos (não tinha certeza se o
+  binding do Livewire propaga pra `@include`s e não quis arriscar). Partials
+  novos: `resources/views/livewire/partials/{mission-row,next-mission,
+  next-mission-tv,calendar-grid,tv-screen}.blade.php`. Componente Blade novo
+  `<x-icon name="...">` (`resources/views/components/icon.blade.php`)
+  reaproveita os MESMOS paths SVG que estavam em `ICONS` no `app.js` (copiados,
+  não reinventados). Componente `<x-live-clock>` (`resources/views/
+  components/live-clock.blade.php`) é o ÚNICO lugar com expressão Alpine.js
+  pra atualizar hora/data a cada 1s/30s sem round-trip ao servidor (Alpine já
+  vem embutido no bundle do Livewire v4 — confirmei com
+  `grep -c Alpine vendor/livewire/livewire/dist/livewire.js`, não instalei nada
+  novo). Outras 3 pontes inevitáveis de JS (documentadas em comentário no
+  próprio `painel.blade.php`, nenhuma é lógica de negócio): 1) tema escuro lido
+  do `localStorage` e mandado pro componente via `Livewire.dispatch('set-
+  initial-theme', ...)`; 2) persistir tema no `localStorage` quando o
+  componente avisa (`Livewire.on('theme-changed', ...)`); 3) pedir/sair da
+  tela cheia (Fullscreen API não existe em PHP) e avisar o componente se o
+  navegador sair sozinho (Esc nativo) via evento `fullscreenchange`.
+  **Refatoração pra não duplicar regra de negócio:** `MissionController`
+  tinha `rules()`/`applyCompletion()` privados; como o Livewire agora
+  manipula `Mission` diretamente (sem passar pela API JSON interna), essas
+  duas viraram métodos ESTÁTICOS em `App\Models\Mission`
+  (`Mission::rules()`/`Mission::applyCompletion()`), e o controller e o
+  `Painel` chamam a mesma implementação — a API `/missions` continua existindo
+  e funcionando (não removi rotas), só não é mais usada pela UI.
+  `App\Livewire\ResponsibleSelector` (Fase 4): a ponte de checkbox escondido
+  pra JS ler (`#f-responsible input:checked`) foi REMOVIDA — agora o
+  componente dispara `responsibles-changed` (via `$this->dispatch()`) toda vez
+  que uma linha muda (`updated()`) ou uma linha é adicionada/removida, e
+  `Painel` escuta com `#[On('responsibles-changed')]` pra manter
+  `$this->responsibles` sincronizado — zero leitura de DOM.
+  **`public/js/app.js` foi APAGADO** (`git rm`, 518 linhas) — confirmei antes,
+  com grep, que nenhum blade referenciava mais `<script src=".../app.js">`
+  nem `window.__PAINEL__`. `public/css/app.css`: as regras `body.monitor-mode`,
+  `body.calendar-monitor-mode` e `body.theme-dark` viraram
+  `.painel-root.monitor-mode` etc. (renomeadas com `sed`, não reescritas à
+  mão) porque essas classes agora ficam num `<div class="painel-root">`
+  dentro do `<body>` (raiz do componente Livewire), não mais no `<body>` em
+  si — o `<body>` virou só o wrapper estático do shell.
+  **3 bugs reais encontrados e corrigidos DURANTE a verificação no navegador
+  (não escondidos, registrando por honestidade):**
+  1) `$this->validate()` com regras `"form.campo"` devolve os dados já
+     ANINHADOS de volta (`['form' => [...]]`), não com a chave literal
+     `"form.campo"` — meu primeiro código fazia
+     `str_replace('form.', '', $chave)` num array que já vinha aninhado,
+     então `Mission::create()` recebia um `$data` sem `title`/`date`/etc.
+     Descoberto criando uma missão de teste pelo calendário: deu
+     `SQLSTATE... NOT NULL constraint failed: missions.title`. Corrigido pra
+     `$data = $this->validate()['form'];`.
+  2) `changeStatus()` (troca de situação pelo select do dashboard) não
+     incluía a chave `completed_by` no array passado pra
+     `Mission::applyCompletion()`, que faz `$data['completed_by'] ?? ...` —
+     PHP/Laravel converte "Undefined array key" em exceção fatal por padrão.
+     Descoberto trocando a situação de uma missão pra "Concluída" no
+     dashboard. Corrigido adicionando a chave (replicando exatamente o que o
+     `app.js` antigo já calculava no payload antes de mandar pro back-end).
+  3) Modo escuro: ao mover `.theme-dark` do `<body>` pro `<div
+     class="painel-root">`, textos e fundos que dependiam de HERANÇA de
+     `body { color: var(--text); background: var(--bg) }` ficaram
+     "congelados" no valor claro (propriedades CSS custom são reavaliadas por
+     elemento, mas `color`/`background` já resolvidos são herdados como valor
+     fixo, não como variável). Resultado: título "Bom dia, Seção." e o
+     relógio ficavam BRANCO SOBRE BRANCO (invisíveis) no modo escuro.
+     Descoberto testando o toggle de tema e comparando screenshots. Corrigido
+     adicionando `.painel-root { color: var(--text); background: var(--bg); }`
+     em `app.css`, reafirmando as variáveis no escopo certo.
+  4) (bug de timing, não de renderização) O tema inicial era mandado via
+     `Livewire.dispatch('set-initial-theme', ...)` dentro do listener
+     `livewire:init`, que dispara ANTES do componente terminar de hidratar no
+     cliente — o dispatch se perdia. Corrigido: registrar os `Livewire.on(...)`
+     em `livewire:init` (continua certo), mas só DISPARAR o tema inicial em
+     `livewire:initialized` (evento que o próprio bundle do Livewire expõe
+     pra sinalizar que os componentes já hidrataram — confirmei com
+     `grep -o "livewire:[a-zA-Z-]*"` no bundle antes de usar, não inventei o
+     nome do evento).
+  **VERIFICADO no navegador** (`preview_start`, porta **8012** — a 8011 estava
+  em uso por outra sessão; ajustei `.claude/launch.json`): as 6 telas do
+  escopo da fase, uma por uma — visão geral (stats, missões de hoje com select
+  de situação, próximos dias, próxima missão, progresso da semana, carga por
+  militar), calendário (navegação de semana, duplo-clique em célula vazia
+  cria missão na data/hora certas, clique numa missão abre edição), "todas as
+  missões" (filtros segmentados, badges, botão editar), "concluídas" (reabrir
+  restaura a `previous_status` certa), modal (criar, editar, excluir com
+  `confirm()`, seletor de responsáveis progressivo integrado sem bridge de
+  checkbox), modo monitor (TV: rotação automática 12s comprovada, tela cheia,
+  sair), modo monitor do calendário (sempre semana atual, independente da
+  navegação do calendário normal — confirmado que NÃO usa `$calMonday`
+  navegado). Testado tema escuro em TODAS as telas + modal (contraste
+  conferido com `preview_inspect`, não só olhando print). Testado responsivo
+  em mobile (375px) e tablet (768px) além de desktop — sidebar vira barra
+  inferior de ícones, formulário empilha em 1 coluna, tabela esconde colunas
+  extras, tudo igual ao comportamento antigo do `app.js`. Restaurei os dados
+  de demonstração (`resetDemo`/`#resetBtn`) ao final. `vendor/bin/pint --test`
+  limpo nos arquivos tocados (`Painel.php` precisou de `vendor/bin/pint`
+  pra ordenar imports — rodei e conferi de novo). `php -l` sem erros em todos
+  os arquivos PHP novos/editados.
+  **Decisão consciente, não uma omissão:** o atalho de teclado "n" (abrir nova
+  missão) do `app.js` antigo NÃO foi recriado — exigiria uma expressão Alpine
+  checando `document.activeElement`/classe de kiosk, que é lógica de UI "à
+  mão" de novo, e não está entre as 6 telas listadas como escopo desta fase.
+  Sinalizando aqui pra decisão do usuário, não decidi remover em definitivo.
+  **Nota sobre a ferramenta de teste (não é bug do app):** em 2 momentos um
+  `preview_click` por seletor CSS não disparou o `wire:click` (o app não
+  mudou de estado), mas o MESMO elemento via `.click()` direto por
+  `preview_eval` funcionou imediatamente — mesma peculiaridade já registrada
+  na Fase 4. Confirmado rodando a ação de novo com sucesso.
+  **PENDENTE:** nenhuma pendência de VM (tudo local/navegador). `php artisan
+  test` continua quebrado, pré-existente (mesma causa já registrada na Fase 4).
 
 ---
 
@@ -299,7 +420,7 @@
 - [x] **Fase 3** — Cadastro de militares: tabela `militares` + CRUD Livewire (inativar em
       vez de apagar; missões guardam nome como snapshot, não reescrevem histórico).
 - [x] **Fase 4** — Seletor de responsáveis progressivo (um + botão "+"), sem JS à mão.
-- [ ] **Fase 5** — Migrar a interface para Livewire, tela por tela, reaproveitando o CSS.
+- [x] **Fase 5** — Migrar a interface para Livewire, tela por tela, reaproveitando o CSS.
 - [ ] **Fase 6** — Corrigir bug do calendário (missões fora de 07h–18h somem).
 
 ---
@@ -310,23 +431,39 @@
 
 - Laravel 11, PHP 8.2, banco **SQLite** (`database/database.sqlite`). Sem npm/Vite.
 - Rotas da API interna: `routes/web.php` (`/missions` CRUD + `/missions/reset`).
-- Controller: `app/Http/Controllers/MissionController.php` (método `reset()` apaga TUDO).
+  Continuam existindo e funcionando (não removidas), mas **não são mais
+  usadas pela interface** desde a Fase 5 — o Livewire manipula `Mission`
+  direto.
+- Controller: `app/Http/Controllers/MissionController.php` (método `reset()` apaga
+  TUDO). Desde a Fase 5, `rules()`/`applyCompletion()` foram extraídos pra
+  `App\Models\Mission::rules()`/`Mission::applyCompletion()` (estáticos) —
+  o controller e o Livewire chamam a MESMA implementação, sem duplicar regra.
 - Model: `app/Models/Mission.php` (campo `responsibles` = array de strings).
-- Interface ATUAL majoritariamente em JS: `public/js/app.js`. CSS:
-  `public/css/app.css`. EXCEÇÃO (Fase 4): o campo "Responsável(is)" do modal
-  de missão é o componente Livewire `App\Livewire\ResponsibleSelector`
-  (+ `resources/views/livewire/responsible-selector.blade.php`), embutido em
-  `painel.blade.php` como `<livewire:responsible-selector :people="..." />`.
-  Ponte com o JS: o componente renderiza checkboxes escondidos (marcados) por
-  responsável escolhido, então `getResponsibles()` (app.js) continua lendo
-  `#f-responsible input:checked` sem mudança; `setResponsibles(list)` agora
-  despacha `Livewire.dispatch('set-responsibles', { list })` em vez de mexer
-  no DOM direto. Isso é transitório — a Fase 5 deve migrar o modal inteiro e
-  então essa ponte pode ser simplificada/removida.
-- View do painel: `resources/views/painel.blade.php`. `$painelPeople` (~linha 200)
-  NÃO é mais um array fixo — vem de `\App\Models\Militar::ativos()` + `push('Toda a
-  seção')`, injetado via `window.__PAINEL__` do mesmo jeito de antes.
-- Calendário desenha só 07h–18h: `CAL_START`/`CAL_END` em `public/js/app.js` (~linha 16).
+- **Interface (desde a Fase 5): 100% Livewire/Blade, `public/js/app.js` foi
+  APAGADO.** Componente principal: `App\Livewire\Painel`
+  (`app/Livewire/Painel.php` + `resources/views/livewire/painel.blade.php`),
+  embutido em `resources/views/painel.blade.php` (shell fino) via
+  `<livewire:painel />`. `render()` pré-calcula "view models" (arrays) pra
+  view só exibir. Partials: `resources/views/livewire/partials/*.blade.php`.
+  Componentes Blade: `<x-icon name="...">` (ícones SVG) e `<x-live-clock>`
+  (relógio/data ao vivo). CSS: `public/css/app.css` (classes de modo
+  monitor/tema escuro migraram de `body.*` pra `.painel-root.*`, já que
+  `.painel-root` é a raiz do componente Livewire dentro do `<body>`).
+  Único JS restante: expressões Alpine.js (empacotado no bundle do Livewire
+  v4, nada instalado à parte) no `<x-live-clock>`, e uma ponte pequena em
+  `painel.blade.php` pra 3 coisas que só o navegador faz (tema no
+  localStorage, Fullscreen API, sincronizar saída de tela cheia nativa) —
+  nenhuma regra de negócio em JS.
+  O campo "Responsável(is)" do modal continua sendo
+  `App\Livewire\ResponsibleSelector` (Fase 4), mas a ponte de checkbox
+  escondido foi REMOVIDA na Fase 5: agora ele dispara o evento
+  `responsibles-changed` e `Painel` escuta com `#[On(...)]`.
+- View do painel: `resources/views/livewire/painel.blade.php` (não mais
+  `painel.blade.php`, que virou só o shell). A lista de pessoas
+  (`$people`, método privado `people()` em `Painel.php`) vem de
+  `\App\Models\Militar::ativos()` + `push('Toda a seção')`, igual antes.
+- Calendário desenha só 07h–18h: constantes `CAL_START`/`CAL_END` em
+  `App\Livewire\Painel` (não mais em `app.js`, que foi apagado).
 - `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Sem autenticação.
 - **Cadastro de militares (Fase 3):** tabela `militares` (migration
   `2026_07_04_144412_create_militares_table`), Model `App\Models\Militar`

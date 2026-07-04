@@ -47,6 +47,7 @@ class ResponsibleSelector extends Component
     public function addRow(): void
     {
         $this->rows[] = '';
+        $this->emitChange();
     }
 
     public function removeRow(int $index): void
@@ -57,6 +58,35 @@ class ResponsibleSelector extends Component
         if ($this->rows === []) {
             $this->rows = [''];
         }
+
+        $this->emitChange();
+    }
+
+    /**
+     * Dispara toda vez que uma linha muda de valor (wire:model.live), já que
+     * esse hook do Livewire só roda para mudanças vindas do front-end.
+     */
+    public function updated(string $name): void
+    {
+        if (str_starts_with($name, 'rows.')) {
+            $this->emitChange();
+        }
+    }
+
+    /**
+     * Avisa o componente pai (Fase 5: App\Livewire\Painel) qual é a lista
+     * atual de responsáveis escolhidos, sem valores vazios. Substitui a
+     * ponte de checkbox escondido usada até a Fase 4 (o formulário de
+     * missão agora é 100% Livewire, sem JS lendo o DOM).
+     *
+     * @return array<int, string>
+     */
+    private function emitChange(): void
+    {
+        $this->dispatch(
+            'responsibles-changed',
+            responsibles: collect($this->rows)->filter(fn ($v) => $v !== '')->values()->all()
+        );
     }
 
     /**
