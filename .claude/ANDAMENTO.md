@@ -26,11 +26,11 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 0 concluída.
-- **PRÓXIMA TAREFA:** Fase 1 — Blindagem de produção (bloquear `/missions/reset` fora
-  de `local`, esconder `#resetBtn`, `.env.production.example`, script de backup do
-  SQLite). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 1.
-- **Depois dela:** Fase 2 — Pipeline de deploy offline (FrankenPHP) + DEPLOY.md.
+- **Fase em andamento:** Fase 1 concluída.
+- **PRÓXIMA TAREFA:** Fase 2 — Pipeline de deploy offline (`build-bundle.ps1` +
+  `DEPLOY.md` com FrankenPHP, fallback de proxy, systemd, conferir extensão
+  pdo_sqlite). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 2.
+- **Depois dela:** Fase 3 — Cadastro de militares (tabela `militares` + CRUD Livewire).
 
 ---
 
@@ -52,13 +52,44 @@
   `preview_start` (porta 8010, pois a 8000 estava ocupada por outra sessão — ajustado
   `.claude/launch.json` para usar `--port=8010`) e confirmei visualmente que o painel
   carrega sem erros de console.
+- **2026-07-04** — **Fase 1 concluída — Blindagem de produção.** Mudanças:
+  `app/Http/Controllers/MissionController.php` (método `reset()` agora chama
+  `abort(404)` quando `app()->environment('local')` é falso, antes de apagar
+  qualquer missão); `resources/views/painel.blade.php` (botão `#resetBtn` só é
+  renderizado dentro de `@if (app()->environment('local'))`); `public/js/app.js`
+  (linha do `bind()` que faz `$('#resetBtn').onclick = resetData` agora checa se o
+  elemento existe antes, pra não quebrar o resto do binding de eventos quando o
+  botão não existe fora de `local`); criado `.env.production.example`
+  (`APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY` em branco pra gerar na VM,
+  mesmo `DB_CONNECTION=sqlite`); criado `scripts/backup-sqlite.sh` (copia
+  `database/database.sqlite` para `storage/app/backups/database-<timestamp>.sqlite`
+  usando `sqlite3 .backup` quando disponível, com fallback pra `cp`; apaga backups
+  com mais de `RETENTION_DAYS` dias, padrão 14; comentário no topo do script com o
+  exemplo de linha de cron); `.gitignore` (ignora `/storage/app/backups`).
+  **VERIFICADO:** rodei o script localmente via Git Bash e ele gerou o backup (usando
+  o fallback `cp`, pois este ambiente Windows não tem `sqlite3` no PATH — em produção
+  na VM Debian isso deve ser conferido, idealmente instalando `sqlite3` pra ter o
+  backup consistente via `.backup` em vez do `cp` simples). Troquei `APP_ENV` no
+  `.env` para `production` e testei de ponta a ponta com `curl` direto no servidor
+  (depois de REINICIAR o `php artisan serve` — importante: o processo antigo não
+  pega mudança de `.env` em quente, então qualquer teste de ambiente precisa
+  reiniciar o servidor): confirmado `#resetBtn` ausente do HTML e
+  `POST /missions/reset` retornando 404. Revertido `.env` para `local` e reiniciado
+  de novo: confirmado no navegador (`preview_screenshot` + `preview_console_logs`)
+  que o botão volta a aparecer e não há erros de console. Ajustado
+  `.claude/launch.json` para porta `8011` (a 8010 estava em uso por outra sessão de
+  chat rodando em paralelo).
+  **PENDENTE:** o script de backup só foi testado com fallback `cp` neste ambiente
+  Windows; na VM Debian real, confirmar se `sqlite3` está instalado (ou instalar) pra
+  usar o modo `.backup` mais seguro. O agendamento via cron ainda não foi testado de
+  fato (só documentado no cabeçalho do script) — só será possível validar na VM.
 
 ---
 
 ## 🗒️ FILA DE FASES (visão geral; detalhe no roadmap-mestre.md)
 
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
-- [ ] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
+- [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
 - [ ] **Fase 2** — Deploy offline: `build-bundle.ps1` + `DEPLOY.md` (FrankenPHP, fallback
       de proxy, systemd, conferir extensão pdo_sqlite).

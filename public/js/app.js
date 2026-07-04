@@ -444,7 +444,7 @@
     document.querySelectorAll('#missionFilters .segment').forEach(b => b.onclick = () => { filter = b.dataset.filter; document.querySelectorAll('#missionFilters .segment').forEach(x => x.classList.toggle('active', x === b)); renderTables(); });
 
     $('#newMissionBtn').onclick = () => openNew();
-    $('#resetBtn').onclick = resetData;
+    if ($('#resetBtn')) $('#resetBtn').onclick = resetData;
     $('#themeBtn').onclick = () => applyTheme(!document.body.classList.contains('theme-dark'));
     $('#monitorBtn').onclick = () => setMonitor(true);
     $('#tvExit').onclick = () => setMonitor(false);

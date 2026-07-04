@@ -108,9 +108,16 @@ class MissionController extends Controller
 
     /**
      * Restaura os dados de demonstração (limpa e re-semeia).
+     *
+     * Disponível apenas em ambiente local: apaga TODAS as missões, o que seria
+     * destrutivo demais para permitir fora de desenvolvimento/homologação.
      */
     public function reset(): JsonResponse
     {
+        if (! app()->environment('local')) {
+            abort(404);
+        }
+
         Mission::query()->delete();
         Artisan::call('db:seed', ['--class' => 'MissionSeeder', '--force' => true]);
 

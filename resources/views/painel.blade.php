@@ -45,7 +45,9 @@
                 <div class="top-actions">
                     <div class="clock"><strong class="mono" id="clock">--:--</strong><span>Horário local</span></div>
                     <button class="icon-btn" id="themeBtn" title="Alternar modo escuro"></button>
-                    <button class="icon-btn" id="resetBtn" title="Restaurar dados de demonstração"><span class="icon" data-icon="refresh"></span></button>
+                    @if (app()->environment('local'))
+                        <button class="icon-btn" id="resetBtn" title="Restaurar dados de demonstração"><span class="icon" data-icon="refresh"></span></button>
+                    @endif
                     <button class="primary-btn" id="newMissionBtn"><span class="icon" data-icon="plus"></span><span>Nova missão</span></button>
                 </div>
             </header>

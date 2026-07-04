@@ -22,3 +22,6 @@ yarn-error.log
 # Banco SQLite local (gerado no setup)
 /database/database.sqlite
 /database/*.sqlite-journal
+
+# Backups locais gerados por scripts/backup-sqlite.sh
+/storage/app/backups
