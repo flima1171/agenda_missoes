@@ -26,10 +26,10 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 5 concluída.
-- **PRÓXIMA TAREFA:** Fase 6 — Corrigir bug do calendário (missões fora de
-  07h–18h somem). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 6.
-- **Depois dela:** roadmap sem mais fases planejadas — reavaliar com o usuário.
+- **Fase em andamento:** Fase 6 concluída.
+- **PRÓXIMA TAREFA:** nenhuma — roadmap sem mais fases planejadas. Reavaliar
+  com o usuário o que vem a seguir.
+- **Depois dela:** —
 
 ---
 
@@ -407,6 +407,38 @@
   na Fase 4. Confirmado rodando a ação de novo com sucesso.
   **PENDENTE:** nenhuma pendência de VM (tudo local/navegador). `php artisan
   test` continua quebrado, pré-existente (mesma causa já registrada na Fase 4).
+- **2026-07-04** — **Fase 6 concluída — Bug do horário no calendário.** Antes
+  de mexer, li de verdade `app/Livewire/Painel.php` (não confiei na memória
+  do que a Fase 5 tinha deixado): `buildWeekGrid()` (linha ~639) usa
+  `range(self::CAL_START, self::CAL_END - 1)` (7..17) como a ÚNICA fonte das
+  linhas do grid, e o loop de células (`$cells[$h][...] = ...`) só percorre
+  essas horas — uma missão salva às 06:00 ou 20:00 nunca cai em nenhuma
+  célula, some visualmente (mas continua no banco). Confirmado lendo também
+  `resources/views/livewire/partials/calendar-grid.blade.php` (usa só
+  `$grid['hours']`, sem hardcode de linhas) e `public/css/app.css`
+  (`.calendar-grid` só define `grid-template-columns`, as linhas são
+  implícitas — logo aumentar a quantidade de horas não quebra o CSS).
+  **Escolhi a opção "ajuste dinamicamente" do roadmap** (não "amplie a faixa"
+  fixo, pra não desperdiçar espaço vertical em semanas normais): mudei
+  `buildWeekGrid()` (`app/Livewire/Painel.php`) pra calcular o menor/maior
+  horário das missões que caem nos 7 dias exibidos (`$weekIsos`/
+  `$missionHours`) e usar `min(CAL_START, ...)`/`max(CAL_END, ...)` pra
+  expandir a faixa 07h–18h só quando necessário — semana sem nada fora do
+  range continua exibindo exatamente 07h–18h como antes.
+  **VERIFICADO no navegador** (`preview_start`, porta **8013** — a 8012
+  estava em uso por outra sessão; ajustei `.claude/launch.json`): criei pela
+  UI uma missão de teste às 06:00 e outra às 20:00 no dia de hoje (sábado,
+  04/jul) — as duas apareceram corretamente no calendário normal (grid
+  passou a ir de 06:00 até 20:00 automaticamente) E no modo monitor do
+  calendário (`enterCalendarMonitor`, que chama a mesma `buildWeekGrid()`
+  pra semana atual). Testado em mobile (375px): grid continua com scroll
+  horizontal (`min-width:820px` em `.calendar-grid`, comportamento
+  pré-existente, não uma regressão desta fase). Sem erros no console em
+  nenhum momento. Restaurei os dados de demonstração (`resetDemo`) ao final
+  pra não deixar as missões de teste no banco. `vendor/bin/pint --test` em
+  `app/Livewire/Painel.php` passou; `php -l` sem erros de sintaxe.
+  **PENDENTE:** nenhuma. `php artisan test` continua quebrado, pré-existente
+  (mesma causa já registrada nas Fases 4/5).
 
 ---
 
@@ -421,7 +453,7 @@
       vez de apagar; missões guardam nome como snapshot, não reescrevem histórico).
 - [x] **Fase 4** — Seletor de responsáveis progressivo (um + botão "+"), sem JS à mão.
 - [x] **Fase 5** — Migrar a interface para Livewire, tela por tela, reaproveitando o CSS.
-- [ ] **Fase 6** — Corrigir bug do calendário (missões fora de 07h–18h somem).
+- [x] **Fase 6** — Corrigir bug do calendário (missões fora de 07h–18h somem).
 
 ---
 
@@ -462,8 +494,10 @@
   `painel.blade.php`, que virou só o shell). A lista de pessoas
   (`$people`, método privado `people()` em `Painel.php`) vem de
   `\App\Models\Militar::ativos()` + `push('Toda a seção')`, igual antes.
-- Calendário desenha só 07h–18h: constantes `CAL_START`/`CAL_END` em
-  `App\Livewire\Painel` (não mais em `app.js`, que foi apagado).
+- Calendário desenha 07h–18h por padrão (constantes `CAL_START`/`CAL_END` em
+  `App\Livewire\Painel`), mas desde a **Fase 6** a faixa se expande
+  dinamicamente em `buildWeekGrid()` quando alguma missão da semana exibida
+  cai fora dela — nenhuma missão some do grid por causa do horário.
 - `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Sem autenticação.
 - **Cadastro de militares (Fase 3):** tabela `militares` (migration
   `2026_07_04_144412_create_militares_table`), Model `App\Models\Militar`

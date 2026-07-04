@@ -654,7 +654,19 @@ class Painel extends Component
             ];
         }
 
-        $hours = range(self::CAL_START, self::CAL_END - 1);
+        // Fase 6: a faixa 07h-18h é só a baseline (evita achatar o grid em
+        // semanas vazias). Se alguma missão da semana exibida cair fora dela,
+        // a faixa se expande pra incluir a hora — sem isso a missão fica
+        // salva no banco mas nunca aparece em nenhuma célula do grid.
+        $weekIsos = collect($days)->pluck('iso');
+        $missionHours = $missions
+            ->filter(fn (Mission $m) => $weekIsos->contains($m->date))
+            ->map(fn (Mission $m) => (int) substr($m->time, 0, 2));
+
+        $start = min(self::CAL_START, $missionHours->min() ?? self::CAL_START);
+        $end = max(self::CAL_END, ($missionHours->max() ?? (self::CAL_END - 1)) + 1);
+
+        $hours = range($start, $end - 1);
         $cells = [];
         foreach ($hours as $h) {
             $cells[$h] = [];
