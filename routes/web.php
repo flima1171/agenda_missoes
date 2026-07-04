@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 // Painel (interface única)
 Route::view('/', 'painel')->name('painel');
 
+// Cadastro de militares (tela em Livewire)
+Route::view('/militares', 'militares')->name('militares.manage');
+
 // API interna consumida pela interface (mesma origem, protegida por CSRF)
 Route::prefix('missions')->group(function () {
     Route::get('/', [MissionController::class, 'index'])->name('missions.index');

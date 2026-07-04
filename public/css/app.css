@@ -447,4 +447,9 @@ body.theme-dark .overdue-tag { color: #f2b0a9; }
 body.theme-dark .tone-green { color: #7fc79c; }
 body.theme-dark .tone-amber { color: #e3b568; }
 body.theme-dark .tone-red { color: #e59089; }
+
+/* Tela de militares (Fase 3): reaproveita .primary-btn, mas aqui o texto é o
+   rótulo do formulário (não um ícone), então não pode virar botão quadrado
+   no mobile como a regra de .primary-btn da barra superior do painel faz. */
+#militares-page .primary-btn { width: auto; justify-content: flex-start; }
 body.theme-dark .tone-blue { color: #8db4d6; }

@@ -26,11 +26,10 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 2 concluída.
-- **PRÓXIMA TAREFA:** Fase 3 — Cadastro de militares (tabela `militares` + CRUD
-  Livewire, inativar em vez de apagar, missões guardam nome como snapshot).
-  Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 3.
-- **Depois dela:** Fase 4 — Seletor de responsáveis progressivo.
+- **Fase em andamento:** Fase 3 concluída.
+- **PRÓXIMA TAREFA:** Fase 4 — Seletor de responsáveis progressivo (um seletor +
+  botão "+", sem JS à mão). Detalhes em `.claude/prompts/roadmap-mestre.md` › FASE 4.
+- **Depois dela:** Fase 5 — Migrar a interface para Livewire, tela por tela.
 
 ---
 
@@ -116,6 +115,84 @@
   oficial do pacote `.deb`, que não está publicado); caminho final de instalação e
   `APP_URL`. **Não testei rodar o binário do FrankenPHP nem o zip na VM** — esta fase
   só cobre o pipeline de preparação, que roda 100% nesta máquina Windows.
+- **2026-07-04** — **Fase 3 concluída — Cadastro de militares.** Antes de mexer,
+  li de verdade `MissionController.php`, `Mission.php`, `routes/web.php` e
+  `painel.blade.php` (confirmei `$painelPeople` na linha 200, não 198 como o
+  ANDAMENTO antigo dizia — número de linha realmente pode desatualizar, como a
+  regra avisa) e `public/js/app.js` (`PEOPLE`/`COMPLETERS` na linha 8-9, uso em
+  `#f-responsible`/`#f-completed_by` na linha 499-500). Pesquisei a doc oficial
+  ATUAL do Livewire antes de instalar — hoje (jul/2026) o composer resolve
+  `livewire/livewire` para a **v4.3.3** (major mudou de v3 pra v4 desde que o
+  roadmap foi escrito; segui a doc atual em livewire.laravel.com/docs, não a
+  da v3 que eu lembrava). Instalado `composer require livewire/livewire`.
+  Criados: migration `2026_07_04_144412_create_militares_table` (`posto_graduacao`,
+  `nome_guerra`, `ativo` bool, `ordem`, `telegram_id`/`telefone` opcionais);
+  Model `App\Models\Militar` (`$table = 'militares'` explícito — o pluralizer do
+  Eloquent não sabe português e ia gerar "militars"; scope `ativos()`; método
+  `nomeExibicao()`); `MilitarSeeder` (popula os 6 militares que hoje estavam
+  fixos em `$painelPeople`; "Toda a seção" **não** virou registro — não é um
+  militar, não pode ser promovido/inativado, continua uma opção fixa somada na
+  view) — registrado em `DatabaseSeeder` (roda antes do `MissionSeeder`, que
+  continua só sendo chamado explicitamente pelo `reset()` em `local`). Criado o
+  componente Livewire `App\Livewire\MilitaresManager` (classe +
+  `resources/views/livewire/militares-manager.blade.php`, via
+  `php artisan make:livewire MilitaresManager --class`) com listar, adicionar,
+  editar, inativar/reativar (nunca apagar — sem método de delete no componente,
+  de propósito) e reordenar (botões ↑/↓ trocando o campo `ordem` com o vizinho;
+  sem drag-and-drop, mas 100% Livewire, sem JS escrito à mão). Nova rota
+  `GET /militares` (`routes/web.php`) renderizando `resources/views/militares.blade.php`
+  (página própria, com `@livewireStyles`/`@livewireScripts`, reaproveitando
+  `public/css/app.css` — decidi NÃO reaproveitar a estrutura `.sidebar`/`.nav`
+  do painel principal porque o CSS responsivo dela é talhado especificamente
+  pro nav de 4 ícones do dashboard; tentei reaproveitar e quebrou em mobile,
+  então troquei por um layout mais simples, só com `.card`/`.form-grid`/
+  `.all-table` etc.). `resources/views/painel.blade.php`: troquei o array fixo
+  `$painelPeople` por uma query (`\App\Models\Militar::ativos()->get()->map(...)
+  ->push('Toda a seção')`) e adicionei o link "Militares" na sidebar (nova seção
+  "Administração"). **DECISÃO DE DADOS** (já estava travada no roadmap, só
+  confirmando que segui): missões continuam guardando o nome como texto
+  (snapshot); promover/renomear um militar não reescreve missões antigas — não
+  há nenhuma FK de missão pra militar, é só texto solto no campo `responsibles`.
+  Também ajustei `build-bundle.ps1` e `DEPLOY.md` (Passo 1): o bundle de deploy
+  agora roda `db:seed --class=MilitarSeeder` depois do `migrate` (sem isso, o
+  próximo deploy real subiria sem NENHUM militar cadastrado, já que essa tabela
+  é nova) — `MissionSeeder` continua de fora do bundle, de propósito, pra não
+  levar missões de demonstração pra produção.
+  **VERIFICADO no navegador** (`preview_start`, porta 8011): criei, editei
+  (renomeei), inativei/reativei e reordenei militares de verdade pela tela
+  `/militares`, conferindo o resultado direto no banco (`php artisan tinker`)
+  a cada passo — bug encontrado e corrigido no meio do caminho: meu primeiro
+  seletor de teste (`button:not(.danger-btn)`) sem querer clicava no botão
+  ↑ em vez de "Editar" (os dois não têm a classe `danger-btn` quando o militar
+  está inativo) — **não é bug do app**, era só a minha automação de teste
+  mirando errado; refiz com seletor mais específico e confirmei que
+  editar/inativar/reordenar funcionam certinho isoladamente. Confirmei que a
+  lista de responsáveis no modal "Nova missão" bate exatamente com a antiga
+  (`Asp Araújo, 3º Sgt Rodrigues Silva, Cb Luide, Sd EP Jones, Sd EP Ferreira
+  Lima, Sd EP Edilson, Toda a seção`) e que inativar um militar o remove do
+  seletor imediatamente. Testado em mobile/tablet/desktop — achei e corrigi
+  uma quebra visual real: a tela `/militares` reaproveitava `.sidebar`/`.nav`
+  do painel e, no breakpoint mobile (`@media max-width:760px`), a regra
+  `.primary-btn { width:42px }` (pensada pro botão "Nova missão" virar
+  ícone) espremia meu botão "Adicionar militar" num quadrado ilegível —
+  corrigi com layout mais simples (sem sidebar) + uma regra aditiva
+  `#militares-page .primary-btn { width:auto }` em `public/css/app.css`
+  (não toquei na regra original, só sobrepus com mais especificidade só
+  nesta página nova). Sem erros no console em nenhuma tela testada.
+  Rodei `build-bundle.ps1` de novo de ponta a ponta e conferi o zip: banco
+  com `militares`=6 (todos ativos, ordem 1-6) e `missions`=0.
+  **PENDENTE:** nenhuma pendência de VM aqui (é tudo local/navegador); a
+  mensagem de erro de validação (campo obrigatório) aparece em inglês
+  ("The posto graduacao field is required.") porque o projeto nunca teve
+  arquivos de tradução em `lang/pt_BR` — não é regressão minha, já era assim
+  para as validações do `MissionController` também; não mexi nisso por estar
+  fora do escopo da Fase 3.
+  **À parte (fora do escopo desta fase, sinalizado como tarefa em segundo
+  plano):** rodando `composer audit` depois de instalar o Livewire, apareceram
+  3 advisories de segurança em `laravel/framework` (a instalada, v11.54.0, está
+  na faixa afetada por um CVE de CRLF injection na regra de validação `email`
+  padrão) — não é usado ativamente neste app (sem autenticação), mas vale
+  avaliar upgrade; não fiz nada a respeito aqui, só registrei a tarefa.
 
 ---
 
@@ -126,7 +203,7 @@
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
 - [x] **Fase 2** — Deploy offline: `build-bundle.ps1` + `DEPLOY.md` (FrankenPHP, fallback
       de proxy, systemd, conferir extensão pdo_sqlite).
-- [ ] **Fase 3** — Cadastro de militares: tabela `militares` + CRUD Livewire (inativar em
+- [x] **Fase 3** — Cadastro de militares: tabela `militares` + CRUD Livewire (inativar em
       vez de apagar; missões guardam nome como snapshot, não reescrevem histórico).
 - [ ] **Fase 4** — Seletor de responsáveis progressivo (um + botão "+"), sem JS à mão.
 - [ ] **Fase 5** — Migrar a interface para Livewire, tela por tela, reaproveitando o CSS.
@@ -143,13 +220,31 @@
 - Controller: `app/Http/Controllers/MissionController.php` (método `reset()` apaga TUDO).
 - Model: `app/Models/Mission.php` (campo `responsibles` = array de strings).
 - Interface ATUAL toda em JS: `public/js/app.js`. CSS: `public/css/app.css`.
-- View única: `resources/views/painel.blade.php`. Lista fixa de militares em
-  `$painelPeople` (~linha 198), injetada via `window.__PAINEL__`.
+- View do painel: `resources/views/painel.blade.php`. `$painelPeople` (~linha 200)
+  NÃO é mais um array fixo — vem de `\App\Models\Militar::ativos()` + `push('Toda a
+  seção')`, injetado via `window.__PAINEL__` do mesmo jeito de antes.
 - Calendário desenha só 07h–18h: `CAL_START`/`CAL_END` em `public/js/app.js` (~linha 16).
 - `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Sem autenticação.
+- **Cadastro de militares (Fase 3):** tabela `militares` (migration
+  `2026_07_04_144412_create_militares_table`), Model `App\Models\Militar`
+  (`$table='militares'` explícito, scope `ativos()`, método `nomeExibicao()`).
+  Tela de gestão: rota `GET /militares` → `resources/views/militares.blade.php`
+  → componente Livewire `App\Livewire\MilitaresManager` (+ view em
+  `resources/views/livewire/militares-manager.blade.php`). Sem delete — só
+  inativa (`ativo=false`). Reordena trocando o campo `ordem` com o vizinho.
+  "Toda a seção" NÃO é um registro em `militares`, é só um valor fixo somado
+  na query do painel (não pode ser promovido/inativado).
+- **Livewire instalado é a v4** (não v3) — `composer.json` já resolveu pra
+  v4.3.3 em jul/2026. A doc oficial atual (livewire.laravel.com/docs) usa
+  convenções diferentes da v3 (ex.: single-file components por padrão,
+  `Route::livewire()`); usamos `make:livewire NomeDoComponente --class`
+  (estilo clássico, classe separada) por ser mais previsível — confirme na
+  doc oficial ATUAL antes de assumir qualquer sintaxe da v3/v4 em fases futuras.
 - **Decisões travadas:** interface → **Livewire** (reaproveitar CSS, live via `wire:poll`);
   deploy → **FrankenPHP** (binário único, VM offline atrás de proxy).
-- Deploy offline: `build-bundle.ps1` (raiz do projeto) gera o zip de produção;
+- Deploy offline: `build-bundle.ps1` (raiz do projeto) gera o zip de produção
+  (agora também roda `db:seed --class=MilitarSeeder`, sem isso o bundle subiria
+  sem nenhum militar cadastrado — `MissionSeeder` continua fora, de propósito);
   `DEPLOY.md` (raiz) tem o procedimento completo pra VM.
 
 ---

@@ -113,6 +113,13 @@ try {
     & php artisan migrate --force
     if ($LASTEXITCODE -ne 0) { throw "php artisan migrate falhou" }
 
+    # MilitarSeeder popula o quadro inicial de militares (dado real, nao
+    # demonstracao -- sem ele o app sobe sem ninguem pra escolher como
+    # responsavel). MissionSeeder NAO roda aqui de proposito: missoes de
+    # demonstracao nao devem ir para producao.
+    & php artisan db:seed --class=MilitarSeeder --force
+    if ($LASTEXITCODE -ne 0) { throw "php artisan db:seed (MilitarSeeder) falhou" }
+
     Remove-Item $TempEnv -Force
 }
 finally {

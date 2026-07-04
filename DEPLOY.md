@@ -21,13 +21,14 @@ pwsh -File build-bundle.ps1
 
 Isso roda `composer install --no-dev --optimize-autoloader` numa cópia
 temporária do projeto (não mexe no `vendor/` nem no `.env` deste checkout de
-desenvolvimento), gera um `database/database.sqlite` novo já migrado (só o
-schema, sem os dados de demonstração/teste) e compacta tudo em
-`build/agenda-missoes-<timestamp>.zip`.
+desenvolvimento), gera um `database/database.sqlite` novo já migrado e semeado
+só com o **quadro de militares** (via `MilitarSeeder` — dado real da seção,
+não demonstração) e compacta tudo em `build/agenda-missoes-<timestamp>.zip`.
 
 O zip contém: código da aplicação, `vendor/` de produção, banco SQLite
-migrado, `.env.production.example`. **Não contém**: `.env`, `.git`, `tests/`,
-`.claude/`, backups locais.
+migrado com o quadro de militares, `.env.production.example`. **Não contém**:
+`.env`, `.git`, `tests/`, `.claude/`, backups locais, e **nenhuma missão de
+demonstração** (`MissionSeeder` não roda no bundle de propósito).
 
 ---
 

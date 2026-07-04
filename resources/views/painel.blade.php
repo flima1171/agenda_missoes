@@ -26,6 +26,10 @@
                 <button class="nav-btn" data-view="missions"><span class="icon" data-icon="clipboard"></span><span>Todas as missões</span></button>
                 <button class="nav-btn" data-view="history"><span class="icon" data-icon="check"></span><span>Concluídas</span></button>
             </nav>
+            <div class="nav-label">Administração</div>
+            <nav class="nav">
+                <a class="nav-btn" href="{{ route('militares.manage') }}"><span>Militares</span></a>
+            </nav>
             <div class="sidebar-bottom">
                 <div class="monitor-card">
                     <strong>Exibição no monitor</strong>
@@ -197,7 +201,14 @@
     <div class="toast" id="toast"><span class="icon" data-icon="check"></span><span id="toastText">Feito.</span></div>
 
     @php
-        $painelPeople = ['Asp Araújo', '3º Sgt Rodrigues Silva', 'Cb Luide', 'Sd EP Jones', 'Sd EP Ferreira Lima', 'Sd EP Edilson', 'Toda a seção'];
+        // Lista de responsáveis: militares ATIVOS cadastrados em /militares (tabela
+        // `militares`), na ordem configurada por lá, + "Toda a seção" (não é um
+        // militar, é uma opção fixa pra atribuir a missão à seção inteira).
+        $painelPeople = \App\Models\Militar::ativos()
+            ->get()
+            ->map(fn ($militar) => $militar->nomeExibicao())
+            ->push('Toda a seção')
+            ->all();
     @endphp
     <script>
         window.__PAINEL__ = {
