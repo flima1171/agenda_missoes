@@ -94,6 +94,12 @@ class ResponsibleSelector extends Component
      * dela (para não sumir do <select>) + quem ainda não foi escolhido em
      * nenhuma outra linha.
      *
+     * Achado 1.3 (A3): um responsável já atribuído mas inativado depois não
+     * está mais em people() (só lista ativos). Sem tratá-lo aqui, o <select>
+     * da linha ficaria SEM a opção do valor atual e, ao salvar, o responsável
+     * seria silenciosamente perdido. Por isso o valor atual entra na lista
+     * mesmo fora de people() — a view o marca como "(inativo)".
+     *
      * @return array<int, string>
      */
     public function optionsFor(int $index): array
@@ -104,10 +110,24 @@ class ResponsibleSelector extends Component
             ->filter(fn ($v) => $v !== '')
             ->all();
 
-        return collect($this->people)
+        $options = collect($this->people);
+        if ($current !== '' && ! $options->contains($current)) {
+            $options = $options->push($current);
+        }
+
+        return $options
             ->reject(fn ($p) => in_array($p, $usedElsewhere, true) && $p !== $current)
             ->values()
             ->all();
+    }
+
+    /**
+     * Um valor de linha está "inativo" quando já não consta dos militares
+     * ativos (people) — usado pela view para marcar "(inativo)" no <select>.
+     */
+    public function isInactive(string $value): bool
+    {
+        return $value !== '' && ! in_array($value, $this->people, true);
     }
 
     public function canAddRow(): bool

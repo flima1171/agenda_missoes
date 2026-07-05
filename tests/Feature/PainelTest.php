@@ -144,4 +144,72 @@ class PainelTest extends TestCase
         $this->assertSame('Título revisado', $mission->title);
         $this->assertSame(['Asp Araújo'], $mission->responsibles);
     }
+
+    // ---------- A3: correções de lógica e validação ----------
+
+    public function test_data_fora_do_intervalo_e_rejeitada(): void
+    {
+        Livewire::test(Painel::class)
+            ->set('form.title', 'Missão no ano 2999')
+            ->set('form.date', '2999-12-31')
+            ->set('form.time', '08:00')
+            ->set('form.priority', 'media')
+            ->set('form.status', 'pendente')
+            ->set('responsibles', ['Cb Luide'])
+            ->call('save')
+            ->assertHasErrors('form.date');
+
+        $this->assertDatabaseCount('missions', 0);
+    }
+
+    public function test_mensagem_de_validacao_sai_em_pt_br_com_nome_amigavel(): void
+    {
+        $component = Livewire::test(Painel::class)
+            ->set('form.title', '')
+            ->set('form.date', '2026-07-10')
+            ->set('form.time', '08:00')
+            ->set('form.priority', 'media')
+            ->set('form.status', 'pendente')
+            ->set('responsibles', ['Cb Luide'])
+            ->call('save')
+            ->assertHasErrors('form.title');
+
+        $mensagem = $component->instance()->getErrorBag()->first('form.title');
+        $this->assertStringContainsString('título', $mensagem);
+        $this->assertStringContainsString('obrigatório', $mensagem);
+        // Não deve vazar a chave crua nem o texto em inglês.
+        $this->assertStringNotContainsString('form.title', $mensagem);
+        $this->assertStringNotContainsString('field is required', $mensagem);
+    }
+
+    public function test_missao_em_andamento_vencida_conta_como_atrasada(): void
+    {
+        // Decisão do usuário (A3): "em andamento" e "atrasada" coexistem.
+        Mission::create($this->missaoValida(['title' => 'Pendente vencida', 'date' => '2020-01-02', 'status' => 'pendente']));
+        Mission::create($this->missaoValida(['title' => 'Andamento vencida', 'date' => '2020-01-02', 'status' => 'andamento']));
+        Mission::create($this->missaoValida([
+            'title' => 'Concluída vencida', 'date' => '2020-01-02', 'status' => 'concluida', 'completed_at' => now(),
+        ]));
+
+        $stats = Livewire::test(Painel::class)->viewData('stats');
+        $atrasadas = collect($stats)->firstWhere('label', 'Atrasadas')['value'];
+
+        // Pendente + andamento vencidas contam; a concluída não.
+        $this->assertSame(2, $atrasadas);
+    }
+
+    public function test_toda_a_secao_nao_entra_na_carga_por_militar(): void
+    {
+        Mission::create($this->missaoValida([
+            'title' => 'Faxina geral',
+            'responsibles' => ['Toda a seção', 'Cb Luide'],
+            'status' => 'pendente',
+        ]));
+
+        $team = Livewire::test(Painel::class)->viewData('team');
+        $nomes = collect($team)->pluck('name');
+
+        $this->assertTrue($nomes->contains('Cb Luide'));
+        $this->assertFalse($nomes->contains('Toda a seção'));
+    }
 }

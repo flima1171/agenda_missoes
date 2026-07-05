@@ -26,13 +26,15 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A2 concluída**. Branch de
+- **Fase em andamento:** Remediação pós-auditoria — **A3 concluída**. Branch de
   trabalho: `remediacao/pos-auditoria`.
-- **PRÓXIMA TAREFA:** **A3** — Correções de lógica e validação em pt-BR
-  (atraso vs. andamento, intervalo de data, responsável inativado no seletor,
-  "Toda a seção" fora da carga, mensagens de validação em pt-BR via
-  `lang/pt_BR/validation.php`). Detalhe em `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** A4 (offline & deploy: self-host de fontes, WAL, bundle/docs).
+- **PRÓXIMA TAREFA:** **A4** — Offline & deploy hardening: self-host das fontes
+  (Archivo + JetBrains Mono `.woff2` em `public/fonts/` + `@font-face`, remover
+  `<link>` do Google Fonts), ligar WAL em `config/database.php`, revisar
+  `build-bundle.ps1` (`.env` no `finally`, semear admin, incluir `public/fonts/`)
+  e atualizar `DEPLOY.md`/`.env.production.example`. Detalhe em
+  `.claude/prompts/remediacao-mestre.md`.
+- **Depois dela:** A5 (performance: paginação/escopo de queries e memoização).
 
 ---
 
@@ -590,6 +592,59 @@
   `/usuarios` ainda não têm tema escuro, e o contraste do `--muted` no escuro
   (achado 5.3) segue abaixo de AA — ambos no escopo declarado da Fase A6. Nenhuma
   pendência de VM nesta fase (tudo local/navegador).
+
+- **2026-07-05** — **Remediação A3 concluída — Correções de lógica e validação
+  em pt-BR.** Antes de codar, li de verdade `Mission.php` (`rules()`),
+  `Painel.php` (`actualStatus`/`teamWorkload`/`rules()`), `ResponsibleSelector.php`
+  (`optionsFor`) + a view, `MilitaresManager.php` e os 3 arquivos de teste tocados,
+  e confirmei que NÃO existia `lang/` (mensagens saíam em inglês). Backup do
+  `.sqlite` no `%TEMP%` antes do teste no navegador.
+  **(1) Atrasada vs. andamento (achado 1.1):** perguntei ao usuário (muda
+  comportamento visível — regra 8). Resposta: "é possível estar em andamento, mas
+  mesmo assim estar atrasada" → as duas coexistem. **Mantive `Painel::actualStatus`
+  como está** (qualquer não-concluída vencida = atrasada), só adicionei comentário
+  registrando a decisão e um teste travando: pendente vencida E andamento vencida
+  contam como atrasada; concluída vencida não. Nenhuma mudança de comportamento —
+  achado 1.1 rebaixado a "intencional".
+  **(2) Intervalo de data (achado 1.2):** `Mission::rules()` no campo `date` ganhou
+  `after_or_equal:2020-01-01` + `before:2100-01-01` (casado com `date_format:Y-m-d`).
+  Teste: `2999-12-31` rejeitada, não grava.
+  **(3) Responsável inativado no seletor (achado 1.3):** `ResponsibleSelector::
+  optionsFor()` agora adiciona o valor atual da linha à lista de opções mesmo quando
+  ele não está em `people()` (só ativos) — sem isso o `<select>` da linha ficaria
+  sem a opção e o responsável seria perdido ao salvar. Novo método `isInactive()` e
+  a view (`responsible-selector.blade.php`) marca "(inativo)" na opção fora de
+  `people`. Teste: `optionsFor` inclui o valor atual fora de `people`; some das
+  OUTRAS linhas.
+  **(4) "Toda a seção" fora da carga (achado 1.4):** `Painel::teamWorkload` pula
+  `'Toda a seção'` (não é militar). Teste: `team` não lista "Toda a seção", mas
+  lista o militar real.
+  **(5) Validação em pt-BR (achado 3.2):** criado `lang/pt_BR/validation.php`
+  (traduções padrão do Laravel 12) + `validationAttributes()` em `Painel`
+  (`form.title`→"título" etc.) e `MilitaresManager` (`nome_guerra`→"nome de guerra"
+  etc.). Adicionado `APP_LOCALE=pt_BR`/`APP_FALLBACK_LOCALE=en` ao `phpunit.xml.dist`
+  para o teste de mensagem não depender do `.env`. Testes: mensagens saem "O campo
+  título é obrigatório." / "O campo nome de guerra é obrigatório." (sem "field is
+  required" nem chave crua "form.title").
+  **VERIFICADO:** `php artisan test` → **42 testes / 123 asserções, exit 0** (era
+  36/99); `vendor/bin/pint --test` → passed; `composer audit` → limpo;
+  `migrate:status` → todas "Ran"; `php -l` limpo em todos os arquivos tocados.
+  **Navegador** (`preview_start`, porta 8013): criei via tinker uma missão com
+  responsável "Cb Fantasma (ex-membro)" (não está entre os ativos), logei como admin
+  e abri a edição — o `<select>` da 1ª linha exibiu "Cb Fantasma (ex-membro)
+  (inativo)" com o valor SELECIONADO e preservado, a 2ª linha "Cb Luide" sem
+  marcador, e a exclusão cruzada de opções entre linhas continuou certa. Provado em
+  tema **claro E escuro** e nas larguras **375/768/1280px** (sem overflow do
+  `.resp-rows`). Validação: com o título vazio, "Salvar missão" mostrou
+  "O campo título é obrigatório." em pt-BR (claro e escuro). **Zero erro de
+  console.** Ao final removi a missão de teste (voltou a 8 missões de demonstração);
+  o backup do `.sqlite` segue no `%TEMP%`. As chamadas ao componente Livewire no
+  navegador foram feitas via `$wire.call(...)` porque o `preview_click`/`.click()`
+  no `wire:click` voltou a não disparar de forma confiável (mesma peculiaridade da
+  ferramenta já registrada nas Fases 4/5 — não é bug do app).
+  **PENDENTE:** nenhuma pendência de VM (tudo local/navegador). O contraste do erro
+  de validação e o tema escuro em `/militares`/`/usuarios` seguem para a A6, como já
+  previsto.
 
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,

@@ -52,7 +52,9 @@ class Mission extends Model
     {
         return [
             'title' => ['required', 'string', 'max:120'],
-            'date' => ['required', 'date_format:Y-m-d'],
+            // Intervalo sensato (A3): evita datas absurdas como "2999-12-31" ou
+            // anos anteriores ao próprio serviço. Casado com date_format:Y-m-d.
+            'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:2020-01-01', 'before:2100-01-01'],
             'time' => ['required', 'date_format:H:i'],
             'responsibles' => ['required', 'array', 'min:1'],
             'responsibles.*' => ['string', 'max:80'],

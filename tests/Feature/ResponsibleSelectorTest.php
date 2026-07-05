@@ -63,4 +63,21 @@ class ResponsibleSelectorTest extends TestCase
         $component->call('removeRow', 0);
         $this->assertSame([''], $component->get('rows'));
     }
+
+    public function test_options_for_mantem_responsavel_inativado_como_opcao(): void
+    {
+        // Achado 1.3 (A3): "Sd EP Inativo" foi atribuído à missão e depois
+        // inativado — não está mais em people (só ativos). Precisa continuar
+        // sendo opção da própria linha, senão some do <select> e é perdido.
+        $component = Livewire::test(ResponsibleSelector::class, [
+            'people' => ['Cb Luide', 'Toda a seção'],
+        ])->set('rows', ['Sd EP Inativo', '']);
+
+        $this->assertContains('Sd EP Inativo', $component->instance()->optionsFor(0));
+        $this->assertTrue($component->instance()->isInactive('Sd EP Inativo'));
+        $this->assertFalse($component->instance()->isInactive('Cb Luide'));
+
+        // Numa OUTRA linha (vazia), o inativado não aparece — só na dele.
+        $this->assertNotContains('Sd EP Inativo', $component->instance()->optionsFor(1));
+    }
 }

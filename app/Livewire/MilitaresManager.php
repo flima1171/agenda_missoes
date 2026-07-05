@@ -38,6 +38,21 @@ class MilitaresManager extends Component
     }
 
     /**
+     * Nomes amigáveis dos campos para as mensagens de validação em pt-BR (A3).
+     *
+     * @return array<string, string>
+     */
+    protected function validationAttributes(): array
+    {
+        return [
+            'posto_graduacao' => 'posto/graduação',
+            'nome_guerra' => 'nome de guerra',
+            'telegram_id' => 'ID do Telegram',
+            'telefone' => 'telefone',
+        ];
+    }
+
+    /**
      * Carrega um militar existente no formulário para edição.
      */
     public function edit(int $id): void

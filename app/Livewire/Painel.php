@@ -86,6 +86,27 @@ class Painel extends Component
             ->all();
     }
 
+    /**
+     * Nomes amigáveis dos campos para as mensagens de validação em pt-BR (A3):
+     * sem isto o erro sairia com a chave crua ("O campo form.title é obrigatório.").
+     *
+     * @return array<string, string>
+     */
+    protected function validationAttributes(): array
+    {
+        return [
+            'form.title' => 'título',
+            'form.date' => 'data',
+            'form.time' => 'horário',
+            'form.priority' => 'prioridade',
+            'form.status' => 'situação',
+            'form.requester' => 'demandante',
+            'form.notes' => 'observações',
+            'form.completed_by' => 'concluído por',
+            'form.responsibles' => 'responsáveis',
+        ];
+    }
+
     // ---------- navegação ----------
 
     public function setView(string $view): void
@@ -434,6 +455,10 @@ class Painel extends Component
 
     private function actualStatus(Mission $m): string
     {
+        // Decisão confirmada com o usuário (A3): uma missão PODE estar "em andamento"
+        // e, ainda assim, "atrasada". Portanto qualquer missão não concluída com
+        // data/hora já no passado é exibida como "atrasada" — só a conclusão remove
+        // o rótulo. (Achado de auditoria 1.1 revisto como comportamento intencional.)
         return $m->status !== 'concluida' && $this->fromISO($m->date, $m->time)->lt(now())
             ? 'atrasada'
             : $m->status;
@@ -582,6 +607,11 @@ class Painel extends Component
         $counts = [];
         foreach ($missions->where('status', '!=', 'concluida') as $m) {
             foreach ($this->respList($m) as $p) {
+                // "Toda a seção" não é um militar — não faz sentido contá-la como
+                // carga individual ao lado das pessoas (A3, achado 1.4).
+                if ($p === 'Toda a seção') {
+                    continue;
+                }
                 $counts[$p] = ($counts[$p] ?? 0) + 1;
             }
         }

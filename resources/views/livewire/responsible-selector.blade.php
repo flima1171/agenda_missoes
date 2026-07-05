@@ -4,7 +4,7 @@
             <select wire:model.live="rows.{{ $i }}">
                 <option value="">Selecione um militar…</option>
                 @foreach ($this->optionsFor($i) as $person)
-                    <option value="{{ $person }}">{{ $person }}</option>
+                    <option value="{{ $person }}">{{ $person }}@if ($this->isInactive($person)) (inativo)@endif</option>
                 @endforeach
             </select>
             @if (count($rows) > 1)

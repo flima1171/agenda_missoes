@@ -80,4 +80,20 @@ class MilitaresManagerTest extends TestCase
 
         $this->assertSame('Cb', $militar->refresh()->posto_graduacao);
     }
+
+    public function test_mensagem_de_validacao_sai_em_pt_br_com_nome_amigavel(): void
+    {
+        // A3: sem lang/pt_BR + validationAttributes, sairia "The nome guerra
+        // field is required." — agora deve usar o nome amigável em pt-BR.
+        $component = Livewire::test(MilitaresManager::class)
+            ->set('posto_graduacao', 'Cb')
+            ->set('nome_guerra', '')
+            ->call('save')
+            ->assertHasErrors('nome_guerra');
+
+        $mensagem = $component->instance()->getErrorBag()->first('nome_guerra');
+        $this->assertStringContainsString('nome de guerra', $mensagem);
+        $this->assertStringContainsString('obrigatório', $mensagem);
+        $this->assertStringNotContainsString('field is required', $mensagem);
+    }
 }
