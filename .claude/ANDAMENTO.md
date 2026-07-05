@@ -26,12 +26,13 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A0 concluída**. Branch de
-  trabalho: `remediacao/pos-auditoria` (criada a partir de `evolucao/roadmap`).
-- **PRÓXIMA TAREFA:** **A1** — Upgrade do Laravel para 12.60+ (zerar `composer
-  audit`, suíte verde, smoke no navegador). Detalhe em
+- **Fase em andamento:** Remediação pós-auditoria — **A1 concluída**. Branch de
+  trabalho: `remediacao/pos-auditoria`.
+- **PRÓXIMA TAREFA:** **A2** — Autenticação (login completo à mão em Livewire,
+  `is_admin`) + trilha de auditoria (`activity_log`) + remover a API REST antiga
+  (`/missions` + `/reset` + `MissionController`). Detalhe em
   `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** A2 (autenticação + auditoria + remover API REST).
+- **Depois dela:** A3 (correções de lógica e validação em pt-BR).
 
 ---
 
@@ -488,9 +489,42 @@
   Não mexi em `config/database.php` além do que o Pint normalizou, pra não
   antecipar a A1.
 
----
-
-## 🗒️ FILA DE FASES (visão geral; detalhe no roadmap-mestre.md)
+- **2026-07-04** — **Remediação A1 concluída — Upgrade Laravel 12 +
+  dependências.** Antes de mexer, confirmei o estado real: `php artisan --version`
+  = 11.54.0 e `composer audit` = 3 advisories em `laravel/framework`. Li os 3
+  advisories de verdade (não confiei na memória): o mais restritivo, "Temporary
+  Signed URL Path Confusion" (`GHSA-crmm-hgp2-wgrp`), exige **`<12.61.1`** — ou
+  seja, 12.60 não bastaria, mirei o 12.x mais recente. Testei conectividade
+  (`composer diagnose` → packagist OK) porque o log da Fase 4 dizia "sem internet"
+  (o ambiente varia; hoje tinha). Backup de `composer.json`/`composer.lock` e de
+  `database/database.sqlite` (para `%TEMP%`) antes de qualquer coisa.
+  Editei `composer.json`: `laravel/framework` `^11.9`→`^12.0`, `laravel/tinker`
+  `^2.9`→`^2.10`, `nunomaduro/collision` `^8.1`→`^8.6`, `phpunit/phpunit`
+  `^11.0.1`→`^11.5.3` (alinhado ao skeleton do Laravel 12, para o resolver não
+  escolher versões antigas). `composer update --with-all-dependencies`:
+  `laravel/framework` v11.54.0 → **v12.62.0**, `nikic/php-parser` 5.7→5.8, novo
+  `symfony/polyfill-php84`. Nenhuma mudança de código de app foi necessária
+  (`bootstrap/app.php`, casts do Mission/Militar e `config/*` seguem compatíveis
+  no salto 11→12 — a suíte e o smoke provaram).
+  **VERIFICADO:** `composer audit` → **"No security vulnerability advisories
+  found."**; `php artisan test` → **21 testes / 56 asserções, exit 0** (e o selo
+  "deprecated" do PHP 8.5 `PDO::MYSQL_ATTR_SSL_CA`, registrado na A0, **sumiu** —
+  o Laravel 12 guarda o constante no `config/database.php`); `vendor/bin/pint
+  --test` → passed; `php artisan migrate:status` → tudo "Ran", sem pendências.
+  **Smoke no navegador** (`preview_start` porta 8013, viewport forçado a 1280px):
+  as 6 telas do painel, uma a uma via `wire:click` real no DOM — visão geral
+  (stats/próxima missão/carga por militar renderizados), calendário (grid com as
+  6 missões da semana), todas as missões (tabela com 8 linhas), concluídas (com
+  botão "Reabrir"), modal "Nova missão" (9 campos + seletor de responsáveis
+  progressivo), modo monitor (`.painel-root.monitor-mode`, tela de TV com 18
+  elementos — screenshot conferido). **Zero erro de console** em todas.
+  Observação de ferramenta (não é bug do app): o botão "Ativar modo monitor" fica
+  em `.sidebar-bottom`, escondido abaixo de ~1024px; precisei forçar 1280px para
+  ele ficar visível — comportamento responsivo pré-existente, não regressão.
+  **Dados:** não houve escrita (só naveguei e abri/fechei o modal); a demonstração
+  seguiu intacta, mas mantive o backup do `.sqlite` em `%TEMP%` por precaução.
+  **PENDENTE:** nenhuma. `composer update` roda na máquina de DEV (com internet);
+  o deploy na VM offline continua usando o bundle já migrado (fora do escopo da A1).
 
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
@@ -509,7 +543,9 @@
 
 > Confirme lendo o arquivo — não assuma que continua exato.
 
-- Laravel 11, PHP 8.2, banco **SQLite** (`database/database.sqlite`). Sem npm/Vite.
+- **Laravel 12.62.0** (subido na Remediação A1; era 11.54.0), PHP 8.5 local /
+  `require` `^8.2`, banco **SQLite** (`database/database.sqlite`). Sem npm/Vite.
+  `composer audit` limpo desde a A1.
 - Rotas da API interna: `routes/web.php` (`/missions` CRUD + `/missions/reset`).
   Continuam existindo e funcionando (não removidas), mas **não são mais
   usadas pela interface** desde a Fase 5 — o Livewire manipula `Mission`
