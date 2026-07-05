@@ -26,10 +26,12 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Fase 6 concluída.
-- **PRÓXIMA TAREFA:** nenhuma — roadmap sem mais fases planejadas. Reavaliar
-  com o usuário o que vem a seguir.
-- **Depois dela:** —
+- **Fase em andamento:** Remediação pós-auditoria — **A0 concluída**. Branch de
+  trabalho: `remediacao/pos-auditoria` (criada a partir de `evolucao/roadmap`).
+- **PRÓXIMA TAREFA:** **A1** — Upgrade do Laravel para 12.60+ (zerar `composer
+  audit`, suíte verde, smoke no navegador). Detalhe em
+  `.claude/prompts/remediacao-mestre.md`.
+- **Depois dela:** A2 (autenticação + auditoria + remover API REST).
 
 ---
 
@@ -439,6 +441,52 @@
   `app/Livewire/Painel.php` passou; `php -l` sem erros de sintaxe.
   **PENDENTE:** nenhuma. `php artisan test` continua quebrado, pré-existente
   (mesma causa já registrada nas Fases 4/5).
+
+- **2026-07-04** — **Remediação A0 concluída — Rede de segurança (testes +
+  baseline).** Criada a branch `remediacao/pos-auditoria` a partir de
+  `evolucao/roadmap` (não trabalho em `main`). O `php artisan test` HOJE só
+  falhava por não existir `phpunit.xml.dist` nem `tests/` — confirmei lendo o
+  diretório (não havia nenhum dos dois). Antes de escrever qualquer teste, li de
+  verdade os arquivos reais que eles cobrem: `app/Models/Mission.php`
+  (`rules()`/`applyCompletion()`), `app/Livewire/Painel.php` (save/changeStatus/
+  reopen/deleteMission/openEdit), `app/Livewire/ResponsibleSelector.php`
+  (`optionsFor`/`canAddRow`/`removeRow`), `app/Livewire/MilitaresManager.php`
+  (save/toggleAtivo/moveUp/moveDown), `app/Models/Militar.php` e as migrations de
+  `missions`/`militares`. Criados: `phpunit.xml.dist` (padrão Laravel 12 —
+  `APP_ENV=testing`, `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`,
+  `SESSION_DRIVER=array`, `CACHE_STORE=array`, `QUEUE_CONNECTION=sync`,
+  `MAIL_MAILER=array`, `BCRYPT_ROUNDS=4`); `tests/TestCase.php` (mínimo, o
+  `createApplication()` do framework já resolve via `bootstrap/app.php` —
+  confirmei em `vendor/.../Foundation/Testing/TestCase.php`); `tests/Unit/
+  MissionTest.php` (7 testes cobrindo `applyCompletion` nos 3 caminhos: 1ª
+  conclusão grava `completed_by`/`completed_at`/`previous_status`; não-conclusão
+  limpa os três; reconclusão preserva a 1ª — só teve status anterior, `completed_at`
+  e `completed_by`; + `rules()`); `tests/Feature/PainelTest.php` (8 testes:
+  criar missão válida, erro "Selecione ao menos um responsável." sem responsáveis
+  + não salva, `changeStatus`→concluída, `reopen` nos caminhos com e sem
+  `previous_status`, `deleteMission`, editar existente); `tests/Feature/
+  ResponsibleSelectorTest.php` (`optionsFor` exclui usados/mantém o atual,
+  `canAddRow`, `removeRow` mantém ≥1 linha); `tests/Feature/
+  MilitaresManagerTest.php` (criar com `ativo`+`ordem` no fim, `toggleAtivo` sem
+  apagar, `moveUp`/`moveDown`, editar). Removido o import não usado
+  `WithoutModelEvents` de `database/seeders/MilitarSeeder.php` (achado 3.3 da
+  auditoria). Rodei `vendor/bin/pint` (fix): normalizou 5 arquivos de scaffolding
+  pré-existentes (`bootstrap/providers.php`, `config/{auth,database,logging}.php`,
+  `database/factories/UserFactory.php`) — só estilo, conferi o diff (10 inserções/
+  6 remoções, nada funcional); `vendor/bin/pint --test` depois: **limpo**.
+  Adicionado `/.phpunit.result.cache` ao `.gitignore`.
+  **VERIFICADO:** `php artisan test` → **21 testes / 56 asserções, exit 0**;
+  `vendor/bin/pint --test` → passed; `php -l` limpo em todos os arquivos novos.
+  Rodei a suíte de novo APÓS o Pint para garantir que a normalização não quebrou
+  nada (continua verde). Fase sem UI → sem prova de navegador (correto).
+  **PENDENTE / observação honesta:** o PHPUnit marca os 21 testes com o selo
+  "deprecated" por causa de um aviso do **PHP 8.5** (`Constant
+  PDO::MYSQL_ATTR_SSL_CA is deprecated`) disparado quando o `config/database.php`
+  do Laravel 11 avalia o bloco `mysql` (o `pdo_mysql` está carregado neste
+  ambiente). **Não é falha** — a suíte sai com exit 0 e `failOnDeprecation` está
+  desligado; é ruído de ambiente e some quando a **A1** subir para o Laravel 12.
+  Não mexi em `config/database.php` além do que o Pint normalizou, pra não
+  antecipar a A1.
 
 ---
 
