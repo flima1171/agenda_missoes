@@ -26,13 +26,13 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A1 concluída**. Branch de
+- **Fase em andamento:** Remediação pós-auditoria — **A2 concluída**. Branch de
   trabalho: `remediacao/pos-auditoria`.
-- **PRÓXIMA TAREFA:** **A2** — Autenticação (login completo à mão em Livewire,
-  `is_admin`) + trilha de auditoria (`activity_log`) + remover a API REST antiga
-  (`/missions` + `/reset` + `MissionController`). Detalhe em
-  `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** A3 (correções de lógica e validação em pt-BR).
+- **PRÓXIMA TAREFA:** **A3** — Correções de lógica e validação em pt-BR
+  (atraso vs. andamento, intervalo de data, responsável inativado no seletor,
+  "Toda a seção" fora da carga, mensagens de validação em pt-BR via
+  `lang/pt_BR/validation.php`). Detalhe em `.claude/prompts/remediacao-mestre.md`.
+- **Depois dela:** A4 (offline & deploy: self-host de fontes, WAL, bundle/docs).
 
 ---
 
@@ -526,6 +526,71 @@
   **PENDENTE:** nenhuma. `composer update` roda na máquina de DEV (com internet);
   o deploy na VM offline continua usando o bundle já migrado (fora do escopo da A1).
 
+- **2026-07-04** — **Remediação A2 concluída — Autenticação + trilha de
+  auditoria + remoção da API REST.** Antes de codar, li de verdade os arquivos
+  reais: `routes/web.php`, `MissionController.php`, `User.php`, a migration de
+  `users`, `Painel.php`, `MilitaresManager.php`, os shells `painel.blade.php`/
+  `militares.blade.php`, `bootstrap/app.php`, `DatabaseSeeder.php` e os 4 arquivos
+  de teste da A0. **Backup** de `database/database.sqlite` no scratchpad antes de
+  qualquer `migrate`. **Decisões já travadas** (não reabri): login completo à mão,
+  remover a API antiga por inteiro.
+  **A2.1 Login:** migration `2026_07_04_160000_add_admin_fields_to_users_table`
+  (`is_admin` bool default false, `nome_guerra` nullable); `User` ganhou `HasFactory`,
+  os campos no `fillable`, cast `is_admin=>boolean` e `nomeExibicao()`. Componente
+  `App\Livewire\Auth\Login` (`Auth::attempt` + `RateLimiter`, 5 tentativas por
+  e-mail+IP, `session()->regenerate()`), view shell `resources/views/auth/login.blade.php`
+  (aplica tema salvo do localStorage antes do paint + botão de alternar tema) e
+  view do componente `resources/views/livewire/auth/login.blade.php`. Rotas: `/login`
+  (`guest`) e `POST /logout` (`auth`); **todas as demais sob `auth`**; guest cai em
+  `/login`. Sidebar do painel: bloco de perfil agora mostra o usuário logado
+  (iniciais + papel) e um botão **"Sair"** (form POST + `@csrf`, ícone `logout` novo
+  no `<x-icon>`); a antiga copy "Toda a seção pode editar" saiu. CSS de login
+  (`.auth-*`) e ajuste do `.profile` (classe `.profile-info` + `.logout-btn`,
+  corrigindo a regra mobile que dependia de `div:last-child`) em `public/css/app.css`.
+  **A2.2 Papéis/gestão:** middleware `admin` (`EnsureUserIsAdmin`) registrado em
+  `bootstrap/app.php`; `/militares` e `/usuarios` só admin (e `mount()` de ambos os
+  componentes aborta 403 — defesa em profundidade). Comando `app:create-user`
+  (criar/redefinir senha offline — sem "esqueci a senha"), `UserSeeder` (admin
+  inicial `admin@25bc.local` / senha `admin1234` a trocar no deploy) adicionado ao
+  `DatabaseSeeder`. Tela `App\Livewire\UsuariosManager` + views (criar usuário,
+  redefinir senha, alternar papel; impede o próprio usuário de se auto-rebaixar).
+  **A2.3 Auditoria:** migration `create_activity_log_table` (`user_id` nullable
+  `nullOnDelete`, `action`, `subject`, `subject_id`, `description`, só `created_at`);
+  model `ActivityLog` com `record()` estático (pega `Auth::id()`). Registro em:
+  login, criar/editar/excluir/mudar-situação/reabrir missão (`Painel`), criar/editar/
+  (in)ativar militar (`MilitaresManager`), criar/editar/promover/rebaixar usuário
+  (`UsuariosManager`). `fallbackCompleter()` do `Painel` passa a **sugerir o usuário
+  logado** como quem concluiu (segue editável no `<select>`). **A2.4 Remover API:**
+  `git rm app/Http/Controllers/MissionController.php`; rotas `/missions` (+`/reset`)
+  retiradas de `routes/web.php`; `Mission::rules()`/`applyCompletion()` mantidos
+  (comentários que citavam "API JSON/MissionController" atualizados). `resetDemo()`
+  do `Painel` (gated a `local`) segue existindo.
+  **Testes:** `PainelTest` e `MilitaresManagerTest` migrados para `actingAs`
+  (o painel exige login; militares exige admin). Novos: `AuthTest` (guest→login,
+  login ok+auditoria, senha errada, logout, comum 403 em /militares+/usuarios,
+  admin 200, `/missions` agora 404), `UsuariosManagerTest` (criar, hash, não se
+  auto-rebaixar, promover/rebaixar outro, comum não monta o componente),
+  `CreateUserCommandTest` (criar admin, redefinir senha sem duplicar, recusar senha
+  curta). **VERIFICADO:** `php artisan test` → **36 testes / 99 asserções, exit 0**;
+  `vendor/bin/pint --test` → limpo (Pint importou `EnsureUserIsAdmin`/`UserFactory`);
+  `composer audit` → limpo; `migrate:status` → todas "Ran". `php -l` limpo em todos
+  os PHP tocados. **Navegador** (`preview_start`, porta 8013): guest→`/login`; login
+  do admin → painel, com `activity_log` "login" gravado (conferido no tinker); sidebar
+  com perfil "A"/Sair e os 2 links de admin; criei um usuário comum pela tela
+  `/usuarios` (auditado); logout pelo botão → `/login`; logado como comum: sidebar
+  **sem** links de admin e `fetch` retornando **403** em `/militares` e `/usuarios`
+  e **404** em `/missions`; login provado em **claro E escuro** (o toggle da tela de
+  login alterna e persiste `theme-dark` — conferido com `preview_inspect`) e em
+  **mobile 375px**; **zero erro de console** em todas as telas. Ao final, limpei os
+  dados de teste do banco de dev (removido o usuário comum e os `activity_log` de
+  teste; o admin semeado permaneceu). **Dados:** backup do `.sqlite` mantido no
+  scratchpad; o schema migrado do dev NÃO foi revertido (o backup era pré-migration,
+  restaurá-lo quebraria o dev) — só limpei as linhas de teste.
+  **PENDENTE (vai para a A6, como o mestre já previa):** as páginas `/militares` e
+  `/usuarios` ainda não têm tema escuro, e o contraste do `--muted` no escuro
+  (achado 5.3) segue abaixo de AA — ambos no escopo declarado da Fase A6. Nenhuma
+  pendência de VM nesta fase (tudo local/navegador).
+
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
@@ -546,14 +611,18 @@
 - **Laravel 12.62.0** (subido na Remediação A1; era 11.54.0), PHP 8.5 local /
   `require` `^8.2`, banco **SQLite** (`database/database.sqlite`). Sem npm/Vite.
   `composer audit` limpo desde a A1.
-- Rotas da API interna: `routes/web.php` (`/missions` CRUD + `/missions/reset`).
-  Continuam existindo e funcionando (não removidas), mas **não são mais
-  usadas pela interface** desde a Fase 5 — o Livewire manipula `Mission`
-  direto.
-- Controller: `app/Http/Controllers/MissionController.php` (método `reset()` apaga
-  TUDO). Desde a Fase 5, `rules()`/`applyCompletion()` foram extraídos pra
-  `App\Models\Mission::rules()`/`Mission::applyCompletion()` (estáticos) —
-  o controller e o Livewire chamam a MESMA implementação, sem duplicar regra.
+- **Autenticação (Remediação A2):** login à mão em Livewire (`App\Livewire\Auth\Login`,
+  rota `/login` guest, `POST /logout`). **Todas** as rotas exigem `auth`, exceto
+  `/login` e o health `/up`. Middleware `admin` (`App\Http\Middleware\EnsureUserIsAdmin`,
+  alias em `bootstrap/app.php`) protege `/militares` e `/usuarios`. `users` ganhou
+  `is_admin` e `nome_guerra`. Admin inicial: `UserSeeder` (`admin@25bc.local`). Criar/
+  redefinir senha offline: `php artisan app:create-user`. Trilha de auditoria:
+  tabela `activity_log` + `App\Models\ActivityLog::record()`, gravada nas ações de
+  missão/militar/usuário/login.
+- **API REST antiga REMOVIDA na A2:** `MissionController.php` apagado e as rotas
+  `/missions` (+`/reset`) retiradas de `routes/web.php`. A interface (Livewire) já
+  manipulava `Mission` direto desde a Fase 5. `App\Models\Mission::rules()`/
+  `Mission::applyCompletion()` (estáticos) permanecem — única fonte da regra de missão.
 - Model: `app/Models/Mission.php` (campo `responsibles` = array de strings).
 - **Interface (desde a Fase 5): 100% Livewire/Blade, `public/js/app.js` foi
   APAGADO.** Componente principal: `App\Livewire\Painel`
@@ -582,7 +651,7 @@
   `App\Livewire\Painel`), mas desde a **Fase 6** a faixa se expande
   dinamicamente em `buildWeekGrid()` quando alguma missão da semana exibida
   cai fora dela — nenhuma missão some do grid por causa do horário.
-- `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Sem autenticação.
+- `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Autenticação ativa desde a A2 (ver acima).
 - **Cadastro de militares (Fase 3):** tabela `militares` (migration
   `2026_07_04_144412_create_militares_table`), Model `App\Models\Militar`
   (`$table='militares'` explícito, scope `ativos()`, método `nomeExibicao()`).

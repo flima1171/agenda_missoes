@@ -1,19 +1,28 @@
 <?php
 
-use App\Http\Controllers\MissionController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Painel (interface única)
-Route::view('/', 'painel')->name('painel');
+// Autenticação (Fase A2): login à mão em Livewire, sem Breeze/Fortify/npm.
+Route::view('/login', 'auth.login')->middleware('guest')->name('login');
 
-// Cadastro de militares (tela em Livewire)
-Route::view('/militares', 'militares')->name('militares.manage');
+Route::post('/logout', function (Request $request) {
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
 
-// API interna consumida pela interface (mesma origem, protegida por CSRF)
-Route::prefix('missions')->group(function () {
-    Route::get('/', [MissionController::class, 'index'])->name('missions.index');
-    Route::post('/', [MissionController::class, 'store'])->name('missions.store');
-    Route::post('/reset', [MissionController::class, 'reset'])->name('missions.reset');
-    Route::put('/{mission}', [MissionController::class, 'update'])->name('missions.update');
-    Route::delete('/{mission}', [MissionController::class, 'destroy'])->name('missions.destroy');
+    return redirect()->route('login');
+})->middleware('auth')->name('logout');
+
+// Tudo abaixo exige sessão autenticada. Guest cai em /login (middleware auth).
+Route::middleware('auth')->group(function () {
+    // Painel (interface única) — qualquer usuário logado gere missões.
+    Route::view('/', 'painel')->name('painel');
+
+    // Administração: só is_admin (militares e usuários).
+    Route::middleware('admin')->group(function () {
+        Route::view('/militares', 'militares')->name('militares.manage');
+        Route::view('/usuarios', 'usuarios')->name('usuarios.manage');
+    });
 });

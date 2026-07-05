@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\MilitaresManager;
 use App\Models\Militar;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -14,6 +15,13 @@ use Tests\TestCase;
 class MilitaresManagerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // A2: gestão de militares é restrita a administradores.
+        $this->actingAs(User::factory()->create(['is_admin' => true]));
+    }
 
     public function test_cria_militar_com_ativo_verdadeiro_e_ordem_no_fim(): void
     {

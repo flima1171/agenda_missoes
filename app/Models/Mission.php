@@ -42,9 +42,9 @@ class Mission extends Model
     }
 
     /**
-     * Regras de validação compartilhadas entre a API JSON (MissionController)
-     * e o formulário Livewire (App\Livewire\Painel), para não duplicar as
-     * constraints em dois lugares.
+     * Regras de validação centralizadas no model, consumidas pelo formulário
+     * Livewire (App\Livewire\Painel), para não duplicar as constraints. A antiga
+     * API JSON (MissionController) foi removida na Fase A2.
      *
      * @return array<string, mixed>
      */
@@ -65,8 +65,8 @@ class Mission extends Model
     }
 
     /**
-     * Ajusta os campos de conclusão conforme a situação escolhida. Compartilhado
-     * entre a API JSON e o Livewire pelo mesmo motivo do rules() acima.
+     * Ajusta os campos de conclusão conforme a situação escolhida. Centralizado
+     * no model pelo mesmo motivo do rules() acima.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>

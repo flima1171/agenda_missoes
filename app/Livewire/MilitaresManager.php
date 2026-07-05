@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ActivityLog;
 use App\Models\Militar;
 use Livewire\Component;
 
@@ -16,6 +17,12 @@ class MilitaresManager extends Component
     public ?string $telegram_id = null;
 
     public ?string $telefone = null;
+
+    public function mount(): void
+    {
+        // Defesa em profundidade: além do middleware 'admin' na rota /militares.
+        abort_unless(auth()->user()?->is_admin, 403);
+    }
 
     /**
      * @return array<string, mixed>
@@ -63,11 +70,14 @@ class MilitaresManager extends Component
         $data = $this->validate();
 
         if ($this->editingId) {
-            Militar::findOrFail($this->editingId)->update($data);
+            $militar = Militar::findOrFail($this->editingId);
+            $militar->update($data);
+            ActivityLog::record('editar_militar', 'militar', $militar->id, 'Editou o militar "'.$militar->nomeExibicao().'".');
         } else {
             $data['ativo'] = true;
             $data['ordem'] = (int) (Militar::max('ordem') ?? 0) + 1;
-            Militar::create($data);
+            $militar = Militar::create($data);
+            ActivityLog::record('criar_militar', 'militar', $militar->id, 'Cadastrou o militar "'.$militar->nomeExibicao().'".');
         }
 
         $this->cancelEdit();
@@ -81,6 +91,12 @@ class MilitaresManager extends Component
     {
         $militar = Militar::findOrFail($id);
         $militar->update(['ativo' => ! $militar->ativo]);
+        ActivityLog::record(
+            $militar->ativo ? 'reativar_militar' : 'inativar_militar',
+            'militar',
+            $militar->id,
+            ($militar->ativo ? 'Reativou' : 'Inativou').' o militar "'.$militar->nomeExibicao().'".'
+        );
     }
 
     /**

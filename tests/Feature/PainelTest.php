@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Painel;
 use App\Models\Mission;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -16,6 +17,13 @@ use Tests\TestCase;
 class PainelTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // A2: o painel exige usuário logado (a sidebar lê auth()->user()).
+        $this->actingAs(User::factory()->create());
+    }
 
     /**
      * @return array<string, mixed>

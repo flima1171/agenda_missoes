@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ActivityLog;
 use App\Models\Militar;
 use App\Models\Mission;
 use Carbon\Carbon;
@@ -265,8 +266,10 @@ class Painel extends Component
 
         if ($this->editingId && $atual) {
             $atual->update($data);
+            ActivityLog::record('editar_missao', 'mission', $atual->id, 'Editou a missão "'.$atual->title.'".');
         } else {
-            Mission::create($data);
+            $nova = Mission::create($data);
+            ActivityLog::record('criar_missao', 'mission', $nova->id, 'Criou a missão "'.$nova->title.'".');
         }
 
         $wasEditing = (bool) $this->editingId;
@@ -285,7 +288,9 @@ class Painel extends Component
             return;
         }
 
+        $titulo = $mission->title;
         $mission->delete();
+        ActivityLog::record('excluir_missao', 'mission', $mission->id, 'Excluiu a missão "'.$titulo.'".');
         $this->closeModal();
         $this->toast('Missão excluída.');
     }
@@ -310,7 +315,9 @@ class Painel extends Component
         ], $mission);
 
         $mission->update($data);
-        $this->toast('"'.$mission->title.'" atualizada para '.mb_strtolower(self::STATUS_LABEL[$status] ?? $status).'.');
+        $situacao = mb_strtolower(self::STATUS_LABEL[$status] ?? $status);
+        ActivityLog::record('alterar_situacao_missao', 'mission', $mission->id, 'Alterou "'.$mission->title.'" para '.$situacao.'.');
+        $this->toast('"'.$mission->title.'" atualizada para '.$situacao.'.');
     }
 
     public function reopen(int $id): void
@@ -334,6 +341,7 @@ class Painel extends Component
         ], $mission);
 
         $mission->update($data);
+        ActivityLog::record('reabrir_missao', 'mission', $mission->id, 'Reabriu a missão "'.$mission->title.'".');
         $this->toast('"'.$mission->title.'" reaberta.');
     }
 
@@ -390,6 +398,12 @@ class Painel extends Component
 
     private function fallbackCompleter(Mission $m): ?string
     {
+        // Fase A2: sugere quem está logado como autor da conclusão (é quem está
+        // clicando). Continua sendo só uma sugestão — o <select> é editável.
+        if ($nome = auth()->user()?->nomeExibicao()) {
+            return $nome;
+        }
+
         $person = collect($this->respList($m))->first(fn ($p) => $p !== 'Toda a seção');
 
         return $person ?? ($this->completers()[0] ?? null);
@@ -767,6 +781,7 @@ class Painel extends Component
             ] : null,
             'people' => $this->people(),
             'completers' => $this->completers(),
+            'userInitials' => $this->initials(auth()->user()?->nomeExibicao()),
         ]);
     }
 }

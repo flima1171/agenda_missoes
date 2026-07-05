@@ -24,10 +24,13 @@
                 <button type="button" class="nav-btn {{ $view === 'missions' ? 'active' : '' }}" wire:click="setView('missions')"><x-icon name="clipboard" /><span>Todas as missões</span></button>
                 <button type="button" class="nav-btn {{ $view === 'history' ? 'active' : '' }}" wire:click="setView('history')"><x-icon name="check" /><span>Concluídas</span></button>
             </nav>
-            <div class="nav-label">Administração</div>
-            <nav class="nav">
-                <a class="nav-btn" href="{{ route('militares.manage') }}"><span>Militares</span></a>
-            </nav>
+            @if (auth()->user()->is_admin)
+                <div class="nav-label">Administração</div>
+                <nav class="nav">
+                    <a class="nav-btn" href="{{ route('militares.manage') }}"><span>Militares</span></a>
+                    <a class="nav-btn" href="{{ route('usuarios.manage') }}"><span>Usuários</span></a>
+                </nav>
+            @endif
             <div class="sidebar-bottom">
                 <div class="monitor-card">
                     <strong>Exibição no monitor</strong>
@@ -35,8 +38,15 @@
                     <button type="button" class="monitor-btn" wire:click="enterMonitor">Ativar modo monitor</button>
                 </div>
                 <div class="profile">
-                    <div class="dot">25º BC</div>
-                    <div><strong>25º Batalhão de Caçadores</strong><span>Toda a seção pode editar</span></div>
+                    <div class="dot">{{ $userInitials }}</div>
+                    <div class="profile-info">
+                        <strong>{{ auth()->user()->nomeExibicao() }}</strong>
+                        <span>{{ auth()->user()->is_admin ? 'Administrador' : 'Usuário da seção' }}</span>
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}" class="logout-form">
+                        @csrf
+                        <button type="submit" class="logout-btn" title="Sair" aria-label="Encerrar sessão"><x-icon name="logout" /></button>
+                    </form>
                 </div>
             </div>
         </aside>
