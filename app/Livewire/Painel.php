@@ -70,6 +70,24 @@ class Painel extends Component
 
     private const CAL_END = 18;
 
+    /** Fase A5: tamanho da página de "Todas as missões" e "Concluídas". */
+    private const LIST_PAGE_SIZE = 50;
+
+    public int $tableLimit = self::LIST_PAGE_SIZE;
+
+    public int $historyLimit = self::LIST_PAGE_SIZE;
+
+    /**
+     * Fase A5: cache por render (a instância do Livewire é recriada a cada
+     * request, então isto só evita recalcular a MESMA consulta/valor mais de
+     * uma vez dentro do MESMO render() — não persiste entre requisições).
+     */
+    private ?array $peopleCache = null;
+
+    private ?array $completersCache = null;
+
+    private ?array $weekDataCache = null;
+
     public function mount(): void
     {
         $this->calMonday = now()->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -141,6 +159,17 @@ class Painel extends Component
     public function setFilter(string $filter): void
     {
         $this->filter = $filter;
+        $this->tableLimit = self::LIST_PAGE_SIZE;
+    }
+
+    public function loadMoreTable(): void
+    {
+        $this->tableLimit += self::LIST_PAGE_SIZE;
+    }
+
+    public function loadMoreHistory(): void
+    {
+        $this->historyLimit += self::LIST_PAGE_SIZE;
     }
 
     // ---------- modo monitor / tema ----------
@@ -389,7 +418,7 @@ class Painel extends Component
      */
     private function people(): array
     {
-        return Militar::ativos()->get()->map(fn ($m) => $m->nomeExibicao())->push('Toda a seção')->all();
+        return $this->peopleCache ??= Militar::ativos()->get()->map(fn ($m) => $m->nomeExibicao())->push('Toda a seção')->all();
     }
 
     /**
@@ -397,7 +426,7 @@ class Painel extends Component
      */
     private function completers(): array
     {
-        return collect($this->people())->reject(fn ($p) => $p === 'Toda a seção')->values()->all();
+        return $this->completersCache ??= collect($this->people())->reject(fn ($p) => $p === 'Toda a seção')->values()->all();
     }
 
     // ---------- helpers de domínio (porta de public/js/app.js) ----------
@@ -517,17 +546,20 @@ class Painel extends Component
     // ---------- view models ----------
 
     /**
+     * Fase A5: recebe as coleções já escopadas por `render()` — $open (todas
+     * as não concluídas, de qualquer data, pois uma missão "atrasada" pode ser
+     * antiga) e $todayAny/$weekMissions (só a janela de data necessária).
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function buildStats(Collection $missions): array
+    private function buildStats(Collection $open, Collection $todayAny, Collection $weekMissions): array
     {
-        $today = now()->toDateString();
-        $doneWeek = $this->weekData($missions)['doneWeek'];
-        $overdue = $missions->filter(fn ($m) => $this->actualStatus($m) === 'atrasada')->count();
+        $doneWeek = $this->weekData($weekMissions)['doneWeek'];
+        $overdue = $open->filter(fn ($m) => $this->actualStatus($m) === 'atrasada')->count();
 
         return [
-            ['icon' => 'clipboard', 'label' => 'Missões hoje', 'value' => $missions->where('date', $today)->count(), 'sub' => 'programadas', 'tone' => 'tone-blue'],
-            ['icon' => 'clock', 'label' => 'Em andamento', 'value' => $missions->where('status', 'andamento')->count(), 'sub' => 'na seção', 'tone' => 'tone-amber'],
+            ['icon' => 'clipboard', 'label' => 'Missões hoje', 'value' => $todayAny->count(), 'sub' => 'programadas', 'tone' => 'tone-blue'],
+            ['icon' => 'clock', 'label' => 'Em andamento', 'value' => $open->where('status', 'andamento')->count(), 'sub' => 'na seção', 'tone' => 'tone-amber'],
             ['icon' => 'check', 'label' => 'Concluídas', 'value' => $doneWeek, 'sub' => 'nesta semana', 'tone' => 'tone-green'],
             ['icon' => 'flag', 'label' => 'Atrasadas', 'value' => $overdue, 'sub' => $overdue === 1 ? 'requer atenção' : 'requerem atenção', 'tone' => 'tone-red'],
         ];
@@ -586,17 +618,25 @@ class Painel extends Component
     }
 
     /**
+     * Fase A5: memoizado — hoje era chamado 2-3× por render (stats, view model
+     * "week" e o modo monitor) com a MESMA janela; sem cache recalculava tudo
+     * de novo cada vez.
+     *
      * @return array{doneWeek: int, total: int, pct: int}
      */
     private function weekData(Collection $missions): array
     {
+        if ($this->weekDataCache !== null) {
+            return $this->weekDataCache;
+        }
+
         $weekStart = now()->startOfWeek(Carbon::MONDAY);
         $weekEnd = $weekStart->copy()->addDays(7);
         $week = $missions->filter(fn ($m) => $this->fromISO($m->date)->gte($weekStart) && $this->fromISO($m->date)->lt($weekEnd));
         $doneWeek = $week->where('status', 'concluida')->count();
         $total = $week->count();
 
-        return ['doneWeek' => $doneWeek, 'total' => $total, 'pct' => $total ? (int) round($doneWeek / $total * 100) : 0];
+        return $this->weekDataCache = ['doneWeek' => $doneWeek, 'total' => $total, 'pct' => $total ? (int) round($doneWeek / $total * 100) : 0];
     }
 
     /**
@@ -627,16 +667,21 @@ class Painel extends Component
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Fase A5: pagina "Todas as missões" (achado 4.1) — a segmentação por
+     * status é calculada em memória (`actualStatus` é derivado, não é coluna),
+     * então o limite é aplicado DEPOIS do filtro, e o total real (antes do
+     * limite) volta junto para a view decidir se mostra "Carregar mais".
+     *
+     * @return array{rows: array<int, array<string, mixed>>, total: int}
      */
-    private function buildTableRows(Collection $missions, string $filter): array
+    private function buildTableRows(Collection $missions, string $filter, int $limit): array
     {
         $list = $this->sorted($missions->where('status', '!=', 'concluida'));
         if ($filter !== 'todas') {
             $list = $list->filter(fn ($m) => $this->actualStatus($m) === $filter)->values();
         }
 
-        return $list->map(function (Mission $m) {
+        $rows = $list->take($limit)->map(function (Mission $m) {
             $st = $this->actualStatus($m);
 
             return [
@@ -652,6 +697,8 @@ class Painel extends Component
                 'statusLabel' => self::STATUS_LABEL[$st] ?? $st,
             ];
         })->all();
+
+        return ['rows' => $rows, 'total' => $list->count()];
     }
 
     /**
@@ -739,15 +786,19 @@ class Painel extends Component
     }
 
     /**
+     * Fase A5: recebe $open (não concluídas, qualquer data — para "próxima
+     * missão" poder achar uma pendente antiga) e $todayAny/$weekMissions (já
+     * escopadas por `render()` à janela de data que a TV realmente exibe).
+     *
      * @return array<string, mixed>
      */
-    private function buildTvData(Collection $missions): array
+    private function buildTvData(Collection $open, Collection $todayAny, Collection $weekMissions): array
     {
         $today = now()->toDateString();
         $names = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
         $weekStart = now()->startOfWeek(Carbon::MONDAY);
 
-        $todayList = $this->sorted($missions->where('date', $today))->take(6)->map(fn (Mission $m) => [
+        $todayList = $this->sorted($todayAny)->take(6)->map(fn (Mission $m) => [
             'time' => $m->time,
             'title' => $m->title,
             'respNames' => $this->respNames($m),
@@ -761,7 +812,7 @@ class Painel extends Component
         for ($i = 0; $i < 5; $i++) {
             $d = $weekStart->copy()->addDays($i);
             $iso = $d->toDateString();
-            $items = $this->sorted($missions->where('date', $iso))->take(4)->map(fn (Mission $m) => [
+            $items = $this->sorted($weekMissions->where('date', $iso))->take(4)->map(fn (Mission $m) => [
                 'time' => $m->time,
                 'title' => $m->title,
                 'respNames' => $this->respNames($m),
@@ -780,34 +831,64 @@ class Painel extends Component
             'screen' => $this->tvScreen,
             'todayList' => $todayList,
             'weekDays' => $weekDays,
-            'next' => $this->buildNextMission($missions),
-            'week' => $this->weekData($missions),
+            'next' => $this->buildNextMission($open),
+            'week' => $this->weekData($weekMissions),
         ];
     }
 
     public function render()
     {
-        $missions = Mission::orderBy('date')->orderBy('time')->get();
+        // Fase A5 (achado 4.1): antes, uma única `Mission::orderBy(...)->get()`
+        // carregava TODA a tabela (inclusive anos de missões já concluídas) em
+        // toda requisição, mesmo com `wire:poll`. Agora cada view model recebe
+        // só a janela de data que realmente precisa:
+        // - $open: não concluídas, qualquer data (uma "atrasada" pode ser
+        //   antiga — não dá pra restringir por semana, ver teste de A3/A5).
+        // - $todayAny / $weekMissions: só hoje / só a semana atual (qualquer
+        //   status, pois o calendário e a TV mostram concluídas também).
+        // - $calWindow: só a semana navegada no calendário (calMonday..+6).
+        // - histórico: paginado direto na consulta (ver buildHistoryRows).
         $today = now()->toDateString();
+        $weekStart = now()->startOfWeek(Carbon::MONDAY);
+        $weekStartIso = $weekStart->toDateString();
+        $weekEndIso = $weekStart->copy()->addDays(6)->toDateString();
+        $calEndIso = Carbon::parse($this->calMonday)->addDays(6)->toDateString();
+
+        $open = Mission::where('status', '!=', 'concluida')->orderBy('date')->orderBy('time')->get();
+        $todayAny = Mission::where('date', $today)->orderBy('time')->get();
+        $weekMissions = Mission::whereBetween('date', [$weekStartIso, $weekEndIso])->get();
+        $calWindow = $this->calMonday === $weekStartIso
+            ? $weekMissions
+            : Mission::whereBetween('date', [$this->calMonday, $calEndIso])->get();
+
+        $historyTotal = Mission::where('status', 'concluida')->count();
+        $historyMissions = Mission::where('status', 'concluida')
+            ->orderByDesc('date')->orderByDesc('time')
+            ->take($this->historyLimit)
+            ->get();
+
+        $table = $this->buildTableRows($open, $this->filter, $this->tableLimit);
 
         return view('livewire.painel', [
-            'stats' => $this->buildStats($missions),
-            'todayMissions' => $this->buildMissionRows($this->sorted($missions->where('date', $today)->where('status', '!=', 'concluida')), 'today'),
+            'stats' => $this->buildStats($open, $todayAny, $weekMissions),
+            'todayMissions' => $this->buildMissionRows($this->sorted($open->where('date', $today)), 'today'),
             'upcomingMissions' => $this->buildMissionRows(
-                $this->sorted($missions->filter(fn ($m) => $m->date > $today && $this->fromISO($m->date)->lt(now()->addDays(8)) && $m->status !== 'concluida'))->take(4),
+                $this->sorted($open->filter(fn ($m) => $m->date > $today && $this->fromISO($m->date)->lt(now()->addDays(8))))->take(4),
                 'upcoming'
             ),
-            'nextMission' => $this->buildNextMission($missions),
-            'week' => $this->weekData($missions),
-            'team' => $this->teamWorkload($missions),
-            'calendar' => $this->buildWeekGrid($missions, $this->calMonday, true),
+            'nextMission' => $this->buildNextMission($open),
+            'week' => $this->weekData($weekMissions),
+            'team' => $this->teamWorkload($open),
+            'calendar' => $this->buildWeekGrid($calWindow, $this->calMonday, true),
             'weekLabel' => $this->weekLabel($this->calMonday),
-            'tableRows' => $this->buildTableRows($missions, $this->filter),
-            'historyRows' => $this->buildHistoryRows($missions),
-            'tv' => $this->monitorMode ? $this->buildTvData($missions) : null,
+            'tableRows' => $table['rows'],
+            'tableHasMore' => $table['total'] > count($table['rows']),
+            'historyRows' => $this->buildHistoryRows($historyMissions),
+            'historyHasMore' => $historyTotal > $historyMissions->count(),
+            'tv' => $this->monitorMode ? $this->buildTvData($open, $todayAny, $weekMissions) : null,
             'calTv' => $this->calendarMonitorMode ? [
-                'grid' => $this->buildWeekGrid($missions, now()->startOfWeek(Carbon::MONDAY)->toDateString(), false),
-                'weekLabel' => $this->weekLabel(now()->startOfWeek(Carbon::MONDAY)->toDateString()),
+                'grid' => $this->buildWeekGrid($weekMissions, $weekStartIso, false),
+                'weekLabel' => $this->weekLabel($weekStartIso),
             ] : null,
             'people' => $this->people(),
             'completers' => $this->completers(),

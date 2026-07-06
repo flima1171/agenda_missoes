@@ -26,14 +26,13 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A4 concluída**. Branch de
+- **Fase em andamento:** Remediação pós-auditoria — **A5 concluída**. Branch de
   trabalho: `remediacao/pos-auditoria`.
-- **PRÓXIMA TAREFA:** **A5** — Performance: paginar/limitar histórico e "Todas as
-  missões", escopar as queries do dashboard/calendário por janela de data,
-  memoizar `people()`/`completers()`/`weekData()` no ciclo de render, e (opcional)
-  índice composto `(date, time)`. Detalhe em `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** A6 (UX/acessibilidade: tema escuro em `/militares`/`/usuarios`,
-  nomes acessíveis, contraste do `--muted`).
+- **PRÓXIMA TAREFA:** **A6** — UX/acessibilidade: tema escuro em `/militares` e
+  `/usuarios`, `aria-label` em botões só-ícone, contraste do `--muted` no escuro,
+  truncamento de título com tooltip, modal acessível (foco/rótulo). Detalhe em
+  `.claude/prompts/remediacao-mestre.md`.
+- **Depois dela:** A7 (fechamento: suíte + Pint + audit + smoke completo + docs).
 
 ---
 
@@ -709,6 +708,59 @@
   de verdade (nesta máquina Windows ele não está no PATH — o fallback `cp`+`-wal`/`-shm`
   é o que roda aqui).
 
+- **2026-07-06** — **Remediação A5 concluída — Performance (paginação, escopo de
+  queries e memoização).** Antes de mexer, li `app/Livewire/Painel.php` (817 linhas)
+  inteiro e os partials `calendar-grid.blade.php`/`tv-screen.blade.php` — confirmei que
+  o calendário e a TV mostram missões CONCLUÍDAS também (classe `done`), não só
+  pendentes, o que definiu como escopar as consultas sem quebrar a exibição.
+  **(1) Escopo de queries por janela de data (achado 4.1):** `render()` trocou o único
+  `Mission::orderBy(...)->get()` (carregava a tabela INTEIRA a cada requisição,
+  inclusive anos de histórico já concluído, mesmo com `wire:poll` a cada 15s) por 4
+  consultas focadas: `$open` (não concluídas, qualquer data — necessário porque uma
+  missão "atrasada" pode ser antiga, confirmado pelo teste da A3 com data `2020-01-02`),
+  `$todayAny` (só hoje, qualquer situação), `$weekMissions` (só a semana ATUAL) e
+  `$calWindow` (só a semana NAVEGADA do calendário; reaproveita `$weekMissions` quando
+  coincidem). `buildStats()`/`buildTvData()` passaram a receber essas coleções já
+  escopadas em vez da coleção gigante.
+  **(2) Paginação/limite (achado 4.1):** "Todas as missões" e "Concluídas" ganharam
+  `$tableLimit`/`$historyLimit` (50 cada, constante `LIST_PAGE_SIZE`) com botão
+  "Carregar mais" (`loadMoreTable`/`loadMoreHistory`, +50 por clique, CSS `.load-more`
+  reaproveitando `.text-btn`); trocar o filtro segmentado reinicia o limite da tabela.
+  O histórico agora busca do banco já `orderByDesc` + `take($historyLimit)`.
+  **(3) Memoização (achado 4.2):** `people()`, `completers()` e `weekData()` cacheiam o
+  resultado num campo privado durante o MESMO `render()` (a instância do Livewire é
+  recriada a cada requisição, então o cache não vaza entre requisições) — eliminava a
+  consulta duplicada de `Militar::ativos()` (rodava 2× por render) e o recálculo de
+  `weekData` (2-3× por render).
+  **(4) Índice composto opcional (achado 4.3):** migration
+  `2026_07_06_191845_add_date_time_index_to_missions_table` — `index(['date','time'])`.
+  **(5) `wire:poll` avaliado, não alterado:** os intervalos (15s dashboard / 12s TV)
+  já eram adequados; o ganho real veio de reduzir o TAMANHO da consulta, não a
+  frequência — mudar isso alteraria comportamento visível sem necessidade.
+  **Teste novo** `tests/Feature/PainelPerformanceTest.php` (5 testes): paginação de
+  "Todas as missões"/"Concluídas" com "carregar mais", reset do limite ao trocar
+  filtro, calendário só traz missões da semana exibida, e uma única consulta a
+  `militares` por render (via `DB::enableQueryLog()` — sem a memoização dava 2).
+  **VERIFICADO:** `php artisan test` → **49 testes / 139 asserções, exit 0** (era
+  44/127); `vendor/bin/pint --test` → passed; `composer audit` → limpo;
+  `migrate:status` → todas "Ran" (migration nova aplicada). **Navegador**
+  (`preview_start` 8013): criei via tinker 55 missões pendentes + 55 concluídas extras
+  pra forçar o limite de 50 a aparecer de verdade — "Carregar mais missões" e "Carregar
+  mais missões concluídas" confirmados em tema ESCURO/mobile (375px) e DESKTOP (1280px)
+  claro; cliquei nos dois botões e confirmei mais linhas aparecendo e o botão sumindo
+  quando não há mais itens. Naveguei pro calendário e voltei uma semana (`prevWeek` —
+  2 cliques via `preview_click` não dispararam o `wire:click`, mesma peculiaridade de
+  ferramenta já registrada nas Fases 4/5/A2; o mesmo botão via `.click()` em JS
+  funcionou de imediato) e confirmei visualmente que as missões "atrasadas" de julho
+  daquela semana aparecem lá e NÃO vazam pra semana atual — prova de que o escopo de
+  data do calendário está correto. Zero erro de console em toda a sessão. Ao final,
+  apaguei as 110 missões de teste e resemeei `MissionSeeder` (voltou a 8 missões de
+  demonstração); backup do `.sqlite` pré-fase ficou em `%TEMP%`.
+  **PENDENTE:** nenhuma pendência de VM (é tudo consulta/lógica local). O item
+  "(bônus)" de medir contagem de queries antes/depois foi coberto de forma
+  direcionada (teste da memoização de `militares`), não uma medição exaustiva de
+  todas as queries do `render()` — suficiente pra travar a regressão que importava.
+
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
@@ -769,6 +821,12 @@
   `App\Livewire\Painel`), mas desde a **Fase 6** a faixa se expande
   dinamicamente em `buildWeekGrid()` quando alguma missão da semana exibida
   cai fora dela — nenhuma missão some do grid por causa do horário.
+- **Performance (Remediação A5):** `Painel::render()` NÃO usa mais uma única query
+  "traga tudo" — usa 4 consultas escopadas por janela de data (`$open` = não
+  concluídas de qualquer data, `$todayAny`/`$weekMissions`/`$calWindow` = janelas
+  específicas). "Todas as missões" e "Concluídas" são paginadas (`$tableLimit`/
+  `$historyLimit`, botão "Carregar mais"). `people()`/`completers()`/`weekData()`
+  são memoizados por render (campo privado, não persiste entre requisições).
 - `.env`: `APP_ENV=local`, `APP_DEBUG=true`. Autenticação ativa desde a A2 (ver acima).
 - **Cadastro de militares (Fase 3):** tabela `militares` (migration
   `2026_07_04_144412_create_militares_table`), Model `App\Models\Militar`

@@ -176,6 +176,9 @@
                             @endforelse
                         </tbody>
                     </table>
+                    @if ($tableHasMore)
+                        <div class="load-more"><button type="button" class="text-btn" wire:click="loadMoreTable">Carregar mais missões</button></div>
+                    @endif
                 </article>
             </section>
 
@@ -199,6 +202,9 @@
                             @endforelse
                         </tbody>
                     </table>
+                    @if ($historyHasMore)
+                        <div class="load-more"><button type="button" class="text-btn" wire:click="loadMoreHistory">Carregar mais missões concluídas</button></div>
+                    @endif
                 </article>
             </section>
         </main>
