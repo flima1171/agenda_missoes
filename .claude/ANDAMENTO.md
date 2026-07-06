@@ -26,13 +26,13 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A5 concluída**. Branch de
+- **Fase em andamento:** Remediação pós-auditoria — **A6 concluída**. Branch de
   trabalho: `remediacao/pos-auditoria`.
-- **PRÓXIMA TAREFA:** **A6** — UX/acessibilidade: tema escuro em `/militares` e
-  `/usuarios`, `aria-label` em botões só-ícone, contraste do `--muted` no escuro,
-  truncamento de título com tooltip, modal acessível (foco/rótulo). Detalhe em
-  `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** A7 (fechamento: suíte + Pint + audit + smoke completo + docs).
+- **PRÓXIMA TAREFA:** **A7** — Fechamento: rodar suíte + Pint + `composer audit` +
+  `migrate:status`, smoke manual completo (login → 6 telas → modal → monitor →
+  `/militares`/`/usuarios`, claro/escuro, 375/768/1280), atualizar `DEPLOY.md`/`README.md`,
+  listar pendências de VM. Detalhe em `.claude/prompts/remediacao-mestre.md`.
+- **Depois dela:** remediação encerrada.
 
 ---
 
@@ -761,6 +761,50 @@
   direcionada (teste da memoização de `militares`), não uma medição exaustiva de
   todas as queries do `render()` — suficiente pra travar a regressão que importava.
 
+- **2026-07-06** — **Remediação A6 concluída — UX/acessibilidade.** Antes de mexer, li
+  `painel.blade.php` (shell + componente), `militares.blade.php`/`usuarios.blade.php`,
+  `icon.blade.php`, `app.css` (`--muted`, regras `.theme-dark`) e todos os partials com
+  botão só-ícone ou texto truncado.
+  **(1) Tema escuro em `/militares`/`/usuarios` (achado 5.1):** essas páginas não tinham
+  `.painel-root` nem ponte de tema. Criados `resources/views/partials/theme-preload.blade.php`
+  (mesmo script do login, aplica o tema ANTES do paint) e `theme-sync.blade.php`, + o
+  componente `<x-theme-toggle root="...">` (botão fixo `.theme-toggle-btn`, nova regra CSS).
+  As duas páginas ganharam wrapper `<div class="painel-root" id="...-theme-root">`; tudo
+  client-side via `localStorage`, sem tocar em `MilitaresManager`/`UsuariosManager`.
+  **(2) Nomes acessíveis em botões só-ícone (achado 5.2):** `aria-label` em todo botão cujo
+  rótulo visível pode sumir (nav da sidebar/"Nova missão" no mobile — `display:none` NÃO
+  conta pro nome acessível) ou que nunca teve texto (tema, reset demo, editar linha, fechar
+  modal "×", `‹`/`›` do calendário, remover responsável "×", mover militar ↑/↓, tema do
+  login). `<x-icon>` ganhou prop `decorative` (default `true`) que sempre renderiza
+  `aria-hidden="true"` — todo ícone do app é decorativo.
+  **(3) Contraste do `--muted` no escuro (achado 5.3):** medido de verdade com
+  `getComputedStyle` DENTRO do navegador rodando (não só matemática offline): `.mission-meta`
+  no escuro dá **6,07:1** e no claro **4,92:1** contra o cartão — ambos folgadamente acima do
+  mínimo AA (4,5:1). A estimativa da auditoria original ("≈3,7:1") estava desatualizada;
+  **nenhuma mudança de cor foi necessária** (registrado pra não repetir o achado por engano).
+  **(4) Truncamento de título (achado 5.4):** `title="..."` completo em `mission-row.blade.php`,
+  `tv-screen.blade.php` e no nome do usuário na sidebar (calendário já tinha desde a Fase 0).
+  **(5) Modal acessível (achado 5.5):** `id="modal-title"` + `aria-labelledby` no `.modal`;
+  `Painel::openNew()`/`openEdit()` disparam `modal-opened`; o shell ganhou um 4º item na
+  ponte de JS — foca `#f-title` ao abrir e PRENDE o foco (Tab/Shift+Tab) dentro do modal
+  enquanto ele existir, sem plugin extra do Alpine.
+  **(6) Comentário desatualizado (achado 3.4):** docblock de
+  `ResponsibleSelector::setResponsibles()` corrigido (não descreve mais um estado "ainda em
+  vanilla JS até a Fase 5" que já não existe).
+  **Teste novo** `tests/Feature/AccessibilityTest.php` (8 testes). **57 testes / 161
+  asserções verdes** (era 49/139); `pint --test` limpo; `php -l` limpo; `migrate:status`
+  sem mudança (fase não mexeu em schema).
+  **Navegador** (porta 8013, admin): foco inicial em `#f-title` confirmado
+  (`document.activeElement.id`); trap de foco confirmado nos dois sentidos via
+  `KeyboardEvent` sintético (Tab do último campo volta ao primeiro `.close-btn`; Shift+Tab
+  do primeiro vai ao último `.primary-btn`) — mesma peculiaridade de sempre com
+  `preview_click`/`wire:click`, `.click()` via JS funcionou. `/militares`/`/usuarios`
+  provados em ESCURO e CLARO (toggle + persistência após reload) e em 375/768/1280px. Zero
+  erro de console; `preview_network` sem nenhuma requisição a domínio externo (invariante
+  offline da A4 preservado). Nenhum dado foi alterado (só toggles de tema e abrir/fechar
+  modal sem salvar) — banco seguiu `missions=8, militares=6, users=1`.
+  **PENDENTE:** nenhuma pendência de VM nesta fase. Segue para a A7 (fechamento).
+
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
       esconder botão `#resetBtn`, `.env.production.example`, script de backup do SQLite.
@@ -845,6 +889,13 @@
   doc oficial ATUAL antes de assumir qualquer sintaxe da v3/v4 em fases futuras.
 - **Decisões travadas:** interface → **Livewire** (reaproveitar CSS, live via `wire:poll`);
   deploy → **FrankenPHP** (binário único, VM offline atrás de proxy).
+- **Acessibilidade/tema (Remediação A6):** `/militares` e `/usuarios` têm tema escuro via
+  `resources/views/partials/theme-{preload,sync}.blade.php` + `<x-theme-toggle root="...">`
+  (`resources/views/components/theme-toggle.blade.php`) — 100% client-side, sem componente
+  Livewire de tema (isso só existe em `Painel::$darkMode`). `<x-icon>` tem prop `decorative`
+  (default `true`, sempre `aria-hidden`). O modal do `Painel` foca `#f-title` e prende o
+  foco (Tab) via o 4º item da ponte de JS em `resources/views/painel.blade.php`, disparado
+  pelo evento `modal-opened` (`Painel::openNew()`/`openEdit()`).
 - Deploy offline: `build-bundle.ps1` (raiz do projeto) gera o zip de produção
   (agora também roda `db:seed --class=MilitarSeeder`, sem isso o bundle subiria
   sem nenhum militar cadastrado — `MissionSeeder` continua fora, de propósito);

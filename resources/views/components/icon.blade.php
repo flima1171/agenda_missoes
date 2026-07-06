@@ -1,4 +1,9 @@
-@props(['name'])
+{{-- Fase A6 (achado 5.2): todo ícone aqui é puramente decorativo — o nome
+     acessível do controle vem do texto visível ou do aria-label do próprio
+     botão/link, nunca do SVG. Por isso aria-hidden fica ligado por padrão;
+     o prop existe só para o caso (hoje inexistente) de um ícone precisar
+     ser o único conteúdo semântico de algo. --}}
+@props(['name', 'decorative' => true])
 @php
     // Mesmos ícones SVG que existiam em ICONS (public/js/app.js), só que
     // renderizados pelo Blade em vez de injetados via innerHTML pelo JS.
@@ -18,4 +23,4 @@
         'logout' => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
     ];
 @endphp
-<span {{ $attributes->merge(['class' => 'icon']) }}><svg viewBox="0 0 24 24">{!! $paths[$name] ?? '' !!}</svg></span>
+<span {{ $attributes->merge(['class' => 'icon']) }} @if ($decorative) aria-hidden="true" @endif><svg viewBox="0 0 24 24">{!! $paths[$name] ?? '' !!}</svg></span>

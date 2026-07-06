@@ -8,7 +8,7 @@
                 @endforeach
             </select>
             @if (count($rows) > 1)
-                <button type="button" class="resp-remove" wire:click="removeRow({{ $i }})" title="Remover">×</button>
+                <button type="button" class="resp-remove" wire:click="removeRow({{ $i }})" title="Remover" aria-label="Remover responsável">×</button>
             @endif
         </div>
     @endforeach

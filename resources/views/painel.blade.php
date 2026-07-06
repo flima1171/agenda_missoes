@@ -15,11 +15,14 @@
 
     {{--
         Fase 5: única ponte de JS que sobrou (o resto virou 100% Livewire/PHP).
-        São 3 coisas que só o navegador pode fazer, não o servidor:
+        São 4 coisas que só o navegador pode fazer, não o servidor:
         1) ler o tema salvo no localStorage e mandar pro componente ao carregar;
         2) persistir o tema no localStorage quando o componente avisa que mudou;
         3) pedir/sair da tela cheia (Fullscreen API) quando o modo monitor liga/desliga,
            e avisar o componente se o navegador sair da tela cheia sozinho (ex.: Esc).
+        4) (Fase A6) focar o 1º campo do modal ao abrir e prender o foco (Tab/Shift+Tab)
+           dentro dele enquanto estiver aberto — acessibilidade que o DOM/CSS não fazem
+           sozinhos (achado 5.5).
         Nenhuma regra de negócio mora aqui — é só o encaixe dos eventos
         Livewire.dispatch()/Livewire.on() com APIs do navegador.
     --}}
@@ -43,6 +46,41 @@
             document.addEventListener('fullscreenchange', () => {
                 if (!document.fullscreenElement) Livewire.dispatch('fullscreen-exited-natively');
             });
+
+            // A6: ao abrir o modal (Painel::openNew()/openEdit()), foca o
+            // primeiro campo. requestAnimationFrame espera o DOM já ter
+            // recebido a classe "open" (o dispatch chega depois do morph).
+            Livewire.on('modal-opened', () => {
+                requestAnimationFrame(() => {
+                    const first = document.querySelector('.modal-backdrop.open .modal #f-title');
+                    if (first) first.focus();
+                });
+            });
+        });
+
+        // A6: prende o foco (Tab/Shift+Tab) dentro do modal enquanto ele
+        // estiver aberto — não precisa de listener por abertura, só olha se
+        // existe um ".modal-backdrop.open" no momento da tecla.
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Tab') return;
+            const modal = document.querySelector('.modal-backdrop.open .modal');
+            if (!modal) return;
+
+            const focusables = Array.prototype.filter.call(
+                modal.querySelectorAll('input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])'),
+                (el) => !el.disabled && el.offsetParent !== null
+            );
+            if (focusables.length === 0) return;
+
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
         });
 
         // ...mas só manda o tema salvo depois que os componentes já hidrataram

@@ -32,7 +32,7 @@
 </head>
 <body>
     <div id="auth-root" class="painel-root auth-root">
-        <button type="button" class="icon-btn auth-theme-btn" title="Alternar modo escuro" onclick="toggleAuthTheme()">
+        <button type="button" class="icon-btn auth-theme-btn" title="Alternar modo escuro" aria-label="Alternar modo escuro" onclick="toggleAuthTheme()">
             <x-icon name="moon" />
         </button>
         <livewire:auth.login />

@@ -17,10 +17,72 @@
 - ✅ concluída (2026-07-05) — **A3** — Correções de lógica e validação em pt-BR
 - ✅ concluída (2026-07-06) — **A4** — Offline & deploy: self-host das fontes, ligar WAL, revisar `build-bundle.ps1` e docs
 - ✅ concluída (2026-07-06) — **A5** — Performance: paginação/escopo de queries e memoização
-- ⬜ pendente — **A6** — UX / acessibilidade
+- ✅ concluída (2026-07-06) — **A6** — UX / acessibilidade
 - ⬜ pendente — **A7** — Fechamento: suíte + Pint + audit + smoke completo + atualizar docs
 
 ## Log de conclusão (só acrescente, nunca apague)
+- **2026-07-06 — A6 concluída.** Antes de mexer, li de verdade `painel.blade.php` (shell +
+  componente), `militares.blade.php`/`usuarios.blade.php`, `icon.blade.php`, `app.css`
+  (variáveis `--muted`, regras de `.theme-dark`) e todos os partials com botões só-ícone
+  ou texto truncado. **(1) Tema escuro em `/militares` e `/usuarios` (achado 5.1):** essas
+  páginas não tinham `.painel-root` nem ponte de tema — criados 2 novos partials
+  (`resources/views/partials/theme-preload.blade.php`, reaproveitando o mesmo script que
+  o login já usava para aplicar o tema ANTES do paint, e `theme-sync.blade.php`) + um
+  componente `<x-theme-toggle root="...">` (`resources/views/components/theme-toggle.blade.php`)
+  com botão fixo no canto superior direito (`.theme-toggle-btn`, nova regra CSS). As duas
+  páginas ganharam um wrapper `<div class="painel-root" id="...-theme-root">`; o toggle é
+  100% client-side (localStorage), sem tocar nos componentes Livewire `MilitaresManager`/
+  `UsuariosManager` (que não têm noção de tema). **(2) Nomes acessíveis em botões só-ícone
+  (achado 5.2):** `aria-label` adicionado em todos os botões cujo rótulo visível pode sumir
+  (nav da sidebar e "Nova missão" no mobile — o texto vira `display:none`, que NÃO conta
+  para o nome acessível) ou que nunca tiveram texto (tema, reset demo, editar linha da
+  tabela, fechar modal "×", `‹`/`›` do calendário, remover responsável "×", mover militar
+  ↑/↓, tema do login). O componente `<x-icon>` ganhou um prop `decorative` (default `true`)
+  que sempre renderiza `aria-hidden="true"` — todo ícone do app é decorativo, o nome vem do
+  botão/aria-label, nunca do SVG. **(3) Contraste do `--muted` no escuro (achado 5.3):**
+  medi de verdade com `getComputedStyle` DENTRO do navegador rodando (não só matemática
+  offline) — `.mission-meta` (10.5px) no tema escuro dá **6,07:1** contra o cartão
+  (`rgb(147,164,155)` sobre `rgb(28,36,32)`) e no claro **4,92:1** — ambos folgadamente
+  acima do mínimo AA (4,5:1). A estimativa da auditoria original ("≈3,7:1, abaixo de AA")
+  estava desatualizada/imprecisa; **nenhuma mudança de cor foi necessária** — documentando
+  para não repetir o mesmo achado por engano numa fase futura. **(4) Truncamento de título
+  (achado 5.4):** `title="..."` com o texto completo adicionado no `<strong>` truncado de
+  `mission-row.blade.php`, `tv-screen.blade.php` (missão do dia no modo monitor) e no nome
+  do usuário no `.profile-info` da sidebar (o calendário já tinha isso desde a Fase 0).
+  **(5) Modal acessível (achado 5.5):** `id="modal-title"` no `<h2>` + `aria-labelledby`
+  no `.modal` (já tinha `role="dialog"`/`aria-modal`); `Painel::openNew()`/`openEdit()`
+  passaram a disparar `$this->dispatch('modal-opened')`; o shell (`painel.blade.php`)
+  ganhou um 4º item na ponte de JS (documentado no comentário): foca `#f-title` no
+  `livewire:init` → `Livewire.on('modal-opened', ...)`, e um `keydown` global que PRENDE o
+  foco (Tab/Shift+Tab) dentro do `.modal-backdrop.open .modal` enquanto ele existir — sem
+  precisar de plugin extra do Alpine (offline, sem npm). **(6) Comentário desatualizado
+  (achado 3.4):** o docblock de `ResponsibleSelector::setResponsibles()` dizia "recebe do
+  JS, ainda em vanilla JS até a Fase 5" como se ainda fosse verdade — corrigido para
+  descrever a realidade atual (recebe de `Painel::openNew()/openEdit()`, 100% Livewire
+  desde a Fase 5).
+  **Teste novo** `tests/Feature/AccessibilityTest.php` (8 testes): wrapper de tema em
+  `/militares` e `/usuarios`, `<x-icon>` decorativo por padrão e desligável via prop,
+  `aria-label` nos botões da sidebar/modal via `Livewire::test(Painel::class)`,
+  `openNew`/`openEdit` disparam `modal-opened`, `aria-labelledby="modal-title"` presente,
+  `aria-label` no botão de remover responsável e nos botões de reordenar militar.
+  **57 testes / 161 asserções verdes** (era 49/139); `pint --test` limpo; `php -l` limpo
+  nos arquivos PHP tocados; `migrate:status` sem mudança (fase não mexeu em schema).
+  **Navegador** (porta 8013, logado como admin): modal "Nova missão" — foco inicial
+  confirmado indo para `#f-title` (`document.activeElement.id`), trap de foco confirmado
+  nos dois sentidos (Tab do último campo volta ao primeiro `.close-btn`; Shift+Tab do
+  primeiro vai ao último `.primary-btn`) via `KeyboardEvent` sintético (a mesma
+  peculiaridade de sempre: `preview_click` não disparava `wire:click` no botão "Nova
+  missão"; `.click()` via JS funcionou). `/militares` e `/usuarios` testados em tema
+  ESCURO e CLARO (toggle + persistência após reload via `localStorage`), e em mobile
+  (375px — botão de tema não colide com o link "Voltar ao painel" nem com o formulário),
+  tablet (768px, modal também testado nessa largura) e desktop (1280px). Zero erro de
+  console em toda a sessão; `preview_network` sem nenhuma requisição a domínio externo
+  (só `localhost:8013`, confirmando que a fase não regrediu o invariante offline da A4).
+  Nenhum dado foi alterado (só toggles de tema e abrir/fechar modal sem salvar) — banco
+  seguiu com `missions=8, militares=6, users=1` (mesma baseline de demonstração), sem
+  necessidade de restaurar backup.
+  **PENDENTE:** nenhuma pendência de VM nesta fase (é tudo CSS/Blade/JS local). Segue para
+  a A7 (fechamento).
 - **2026-07-06 — A5 concluída.** Antes de mexer, li `app/Livewire/Painel.php` (817 linhas) inteiro e os partials `calendar-grid`/`tv-screen` para confirmar que a TV e o calendário mostram missões concluídas também (classe `done`), não só as pendentes — isso definiu o desenho da fase. **(1) Escopo de queries por janela de data** (achado 4.1): `render()` trocou o único `Mission::orderBy(...)->get()` (carregava a tabela inteira, incluindo anos de histórico) por 4 consultas focadas: `$open` (não concluídas, qualquer data — necessário porque uma missão "atrasada" pode ser antiga, confirmado pelo teste da A3 com data de 2020), `$todayAny` (só hoje, qualquer situação), `$weekMissions` (só a semana ATUAL, qualquer situação — usada por `weekData`/TV) e `$calWindow` (só a semana NAVEGADA do calendário; reaproveita `$weekMissions` quando coincidem). `buildStats`/`buildTvData` foram ajustados para receber essas coleções já escopadas em vez da coleção gigante. **(2) Paginação/limite** (achado 4.1): "Todas as missões" e "Concluídas" ganharam `$tableLimit`/`$historyLimit` (50 cada, constante `LIST_PAGE_SIZE`) com botão "Carregar mais" (`loadMoreTable`/`loadMoreHistory`, +50 por clique); trocar o filtro segmentado reinicia o limite da tabela. O histórico agora busca do banco já ORDER BY DESC + LIMIT (`historyLimit`), não mais a tabela inteira. **(3) Memoização** (achado 4.2): `people()`, `completers()` e `weekData()` cacheiam o resultado num campo privado durante o MESMO `render()` (o componente Livewire é recriado a cada request, então o cache não vaza entre requisições) — eliminava a query duplicada de `Militar::ativos()` (rodava 2× por render) e o recálculo de `weekData` (rodava 2-3× por render). **(4) Índice composto opcional** (achado 4.3): migration nova `add_date_time_index_to_missions_table` — `index(['date','time'])`. **(5) `wire:poll` avaliado, não alterado:** os intervalos (15s dashboard / 12s TV) já eram adequados e mudar a frequência alteraria comportamento visível sem necessidade — o ganho real veio de reduzir o TAMANHO da consulta, não a frequência do poll.
   **Teste novo** `tests/Feature/PainelPerformanceTest.php` (5 testes): paginação de "Todas as missões" e "Concluídas" com "carregar mais", reset do limite ao trocar filtro, calendário só traz missões da semana exibida (escopo de data), e uma consulta a `militares` por render (prova a memoização via `DB::enableQueryLog()` — sem o cache este teste dava 2). **49 testes / 139 asserções verdes** (era 44/127); `pint --test` limpo; `composer audit` limpo; `migrate:status` ok (nova migration aplicada). **Navegador** (porta 8013): criei via tinker 55 missões pendentes + 55 concluídas extras para forçar o limite de 50 a aparecer de verdade — confirmado "Carregar mais missões" e "Carregar mais missões concluídas" em tema ESCURO e mobile (375px) e DESKTOP (1280px) claro; cliquei em ambos os botões e confirmei que mais linhas aparecem e o botão some quando não há mais itens. Naveguei o calendário para a semana anterior (`prevWeek` — um clique via `preview_click` não disparou o `wire:click`, mesma peculiaridade de ferramenta já registrada nas Fases 4/5/A2; o mesmo botão via `.click()` em JS funcionou imediatamente) e confirmei visualmente que as missões "atrasadas" de julho (dentro daquela semana) aparecem lá e NÃO vazam para a semana atual — prova de que o escopo de data do calendário está correto. Zero erro de console em toda a sessão. Ao final, apaguei as 110 missões de teste e resemeei `MissionSeeder` (voltou a 8 missões de demonstração); backup do `.sqlite` pré-fase ficou em `%TEMP%`.
   **PENDENTE:** nenhuma pendência de VM nesta fase (é tudo consulta/lógica local). O item "(bônus)" de medir contagem de queries antes/depois com `DB::listen` foi coberto de forma direcionada (teste da memoização de `militares`), não uma medição exaustiva de todas as queries do `render()` — suficiente para travar a regressão que importava.

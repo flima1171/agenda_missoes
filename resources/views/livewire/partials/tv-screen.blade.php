@@ -17,7 +17,7 @@
                 @forelse ($tv['todayList'] as $m)
                     <div class="tv-mission p-{{ $m['priority'] }} {{ $m['done'] ? 'done' : '' }}">
                         <div class="t">{{ $m['time'] }}</div>
-                        <div class="m"><strong>{{ $m['title'] }}</strong><span>{{ $m['respNames'] }}</span></div>
+                        <div class="m"><strong title="{{ $m['title'] }}">{{ $m['title'] }}</strong><span>{{ $m['respNames'] }}</span></div>
                         <span class="pill tv-pill s-{{ $m['status'] }}">{{ $m['statusLabel'] }}</span>
                     </div>
                 @empty

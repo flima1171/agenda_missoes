@@ -19,10 +19,10 @@
             </div>
             <div class="nav-label">Painel</div>
             <nav class="nav">
-                <button type="button" class="nav-btn {{ $view === 'dashboard' ? 'active' : '' }}" wire:click="setView('dashboard')"><x-icon name="grid" /><span>Visão geral</span></button>
-                <button type="button" class="nav-btn {{ $view === 'calendar' ? 'active' : '' }}" wire:click="setView('calendar')"><x-icon name="calendar" /><span>Calendário</span></button>
-                <button type="button" class="nav-btn {{ $view === 'missions' ? 'active' : '' }}" wire:click="setView('missions')"><x-icon name="clipboard" /><span>Todas as missões</span></button>
-                <button type="button" class="nav-btn {{ $view === 'history' ? 'active' : '' }}" wire:click="setView('history')"><x-icon name="check" /><span>Concluídas</span></button>
+                <button type="button" class="nav-btn {{ $view === 'dashboard' ? 'active' : '' }}" wire:click="setView('dashboard')" aria-label="Visão geral"><x-icon name="grid" /><span>Visão geral</span></button>
+                <button type="button" class="nav-btn {{ $view === 'calendar' ? 'active' : '' }}" wire:click="setView('calendar')" aria-label="Calendário"><x-icon name="calendar" /><span>Calendário</span></button>
+                <button type="button" class="nav-btn {{ $view === 'missions' ? 'active' : '' }}" wire:click="setView('missions')" aria-label="Todas as missões"><x-icon name="clipboard" /><span>Todas as missões</span></button>
+                <button type="button" class="nav-btn {{ $view === 'history' ? 'active' : '' }}" wire:click="setView('history')" aria-label="Concluídas"><x-icon name="check" /><span>Concluídas</span></button>
             </nav>
             @if (auth()->user()->is_admin)
                 <div class="nav-label">Administração</div>
@@ -40,7 +40,7 @@
                 <div class="profile">
                     <div class="dot">{{ $userInitials }}</div>
                     <div class="profile-info">
-                        <strong>{{ auth()->user()->nomeExibicao() }}</strong>
+                        <strong title="{{ auth()->user()->nomeExibicao() }}">{{ auth()->user()->nomeExibicao() }}</strong>
                         <span>{{ auth()->user()->is_admin ? 'Administrador' : 'Usuário da seção' }}</span>
                     </div>
                     <form method="POST" action="{{ route('logout') }}" class="logout-form">
@@ -59,14 +59,14 @@
                 </div>
                 <div class="top-actions">
                     <div class="clock"><x-live-clock /><span>Horário local</span></div>
-                    <button type="button" class="icon-btn" title="Alternar modo escuro" wire:click="toggleTheme"><x-icon :name="$darkMode ? 'sun' : 'moon'" /></button>
+                    <button type="button" class="icon-btn" title="Alternar modo escuro" aria-label="Alternar modo escuro" wire:click="toggleTheme"><x-icon :name="$darkMode ? 'sun' : 'moon'" /></button>
                     @if (app()->environment('local'))
-                        <button type="button" class="icon-btn" id="resetBtn" title="Restaurar dados de demonstração"
+                        <button type="button" class="icon-btn" id="resetBtn" title="Restaurar dados de demonstração" aria-label="Restaurar dados de demonstração"
                             x-on:click="if (confirm('Restaurar os dados iniciais da demonstração? As missões atuais serão apagadas.')) $wire.resetDemo()">
                             <x-icon name="refresh" />
                         </button>
                     @endif
-                    <button type="button" class="primary-btn" wire:click="openNew"><x-icon name="plus" /><span>Nova missão</span></button>
+                    <button type="button" class="primary-btn" wire:click="openNew" aria-label="Nova missão"><x-icon name="plus" /><span>Nova missão</span></button>
                 </div>
             </header>
 
@@ -133,9 +133,9 @@
                 <div class="section-toolbar">
                     <div><h2>Calendário de missões</h2></div>
                     <div class="week-nav">
-                        <button type="button" wire:click="prevWeek">‹</button>
+                        <button type="button" wire:click="prevWeek" aria-label="Semana anterior">‹</button>
                         <strong>{{ $weekLabel }}</strong>
-                        <button type="button" wire:click="nextWeek">›</button>
+                        <button type="button" wire:click="nextWeek" aria-label="Semana seguinte">›</button>
                         <button type="button" wire:click="todayWeek">Hoje</button>
                     </div>
                 </div>
@@ -169,7 +169,7 @@
                                     <td>{{ $r['respNames'] }}</td>
                                     <td><span class="badge b-{{ $r['priority'] }}">{{ $r['priorityLabel'] }}</span></td>
                                     <td><span class="badge s-{{ $r['status'] }}">{{ $r['statusLabel'] }}</span></td>
-                                    <td><div class="row-actions"><button type="button" class="small-btn" title="Editar" wire:click="openEdit({{ $r['id'] }})"><x-icon name="edit" /></button></div></td>
+                                    <td><div class="row-actions"><button type="button" class="small-btn" title="Editar" aria-label="Editar {{ $r['title'] }}" wire:click="openEdit({{ $r['id'] }})"><x-icon name="edit" /></button></div></td>
                                 </tr>
                             @empty
                                 <tr><td colspan="6" class="empty">Nenhuma missão neste filtro.</td></tr>
@@ -242,8 +242,8 @@
 
     {{-- ============================ MODAL ============================ --}}
     <div class="modal-backdrop {{ $showModal ? 'open' : '' }}" wire:click.self="closeModal">
-        <div class="modal" role="dialog" aria-modal="true">
-            <div class="modal-head"><div><h2>{{ $editingId ? 'Editar missão' : 'Nova missão' }}</h2><p>Preencha somente o necessário. Depois você pode editar.</p></div><button class="close-btn" type="button" wire:click="closeModal">×</button></div>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-head"><div><h2 id="modal-title">{{ $editingId ? 'Editar missão' : 'Nova missão' }}</h2><p>Preencha somente o necessário. Depois você pode editar.</p></div><button class="close-btn" type="button" wire:click="closeModal" aria-label="Fechar">×</button></div>
             <form wire:submit="save">
                 <div class="form-grid">
                     <div class="field full"><label for="f-title">Missão *</label><input id="f-title" wire:model="form.title" required maxlength="120" placeholder="Ex.: VC — Verificação de Cumprimento"></div>

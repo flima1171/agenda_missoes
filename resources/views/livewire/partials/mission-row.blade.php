@@ -8,7 +8,7 @@
         <div class="mission-time mono">{{ $m['time'] }}</div>
     @endif
     <div class="mission-main">
-        <strong>{{ $m['title'] }}</strong>
+        <strong title="{{ $m['title'] }}">{{ $m['title'] }}</strong>
         <div class="mission-meta">{{ $m['dateLabel'] }}{{ $m['requester'] ? ' · '.$m['requester'] : '' }}</div>
     </div>
     <div class="responsible">

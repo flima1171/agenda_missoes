@@ -267,6 +267,9 @@ class Painel extends Component
         ];
         $this->showModal = true;
         $this->dispatch('set-responsibles', list: []);
+        // A6: o shell (painel.blade.php) escuta este evento para focar o
+        // primeiro campo do modal (achado 5.5 — foco inicial acessível).
+        $this->dispatch('modal-opened');
     }
 
     public function openEdit(int $id): void
@@ -291,6 +294,7 @@ class Painel extends Component
         ];
         $this->showModal = true;
         $this->dispatch('set-responsibles', list: $this->responsibles);
+        $this->dispatch('modal-opened');
     }
 
     public function closeModal(): void

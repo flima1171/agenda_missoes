@@ -31,10 +31,10 @@ class ResponsibleSelector extends Component
     }
 
     /**
-     * Recebe do JS (formulário de missão, ainda em vanilla JS até a Fase 5) a
-     * lista de responsáveis da missão sendo aberta para edição/criação, já que
-     * este componente Livewire persiste no DOM entre uma abertura de modal e
-     * outra.
+     * Recebe do componente pai (App\Livewire\Painel::openNew()/openEdit(), 100%
+     * Livewire desde a Fase 5) a lista de responsáveis da missão sendo aberta
+     * para edição/criação, já que este componente Livewire persiste no DOM
+     * entre uma abertura de modal e outra.
      *
      * @param  array<int, string>  $list
      */

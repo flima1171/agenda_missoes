@@ -57,8 +57,8 @@
                 @forelse ($militares as $militar)
                     <tr wire:key="militar-{{ $militar->id }}">
                         <td style="white-space:nowrap">
-                            <button type="button" class="icon-btn" style="width:30px;height:30px" title="Mover para cima" wire:click="moveUp({{ $militar->id }})">↑</button>
-                            <button type="button" class="icon-btn" style="width:30px;height:30px" title="Mover para baixo" wire:click="moveDown({{ $militar->id }})">↓</button>
+                            <button type="button" class="icon-btn" style="width:30px;height:30px" title="Mover para cima" aria-label="Mover {{ $militar->nomeExibicao() }} para cima" wire:click="moveUp({{ $militar->id }})">↑</button>
+                            <button type="button" class="icon-btn" style="width:30px;height:30px" title="Mover para baixo" aria-label="Mover {{ $militar->nomeExibicao() }} para baixo" wire:click="moveDown({{ $militar->id }})">↓</button>
                         </td>
                         <td>{{ $militar->nomeExibicao() }}</td>
                         <td>

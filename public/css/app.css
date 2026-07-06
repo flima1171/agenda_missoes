@@ -525,3 +525,7 @@ form { padding: 20px 23px 23px; }
 .auth-remember input { width: auto; }
 .auth-error { background: var(--red-soft); color: var(--red); border-radius: 11px; padding: 10px 12px; font-size: 12.5px; font-weight: 600; margin-bottom: 16px; }
 .auth-theme-btn { position: fixed; top: 16px; right: 16px; }
+
+/* Fase A6 (achado 5.1): mesmo botão de tema do login, reaproveitado por
+   /militares e /usuarios via <x-theme-toggle>. */
+.theme-toggle-btn { position: fixed; top: 16px; right: 16px; z-index: 5; }
