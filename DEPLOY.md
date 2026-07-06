@@ -22,13 +22,26 @@ pwsh -File build-bundle.ps1
 Isso roda `composer install --no-dev --optimize-autoloader` numa cópia
 temporária do projeto (não mexe no `vendor/` nem no `.env` deste checkout de
 desenvolvimento), gera um `database/database.sqlite` novo já migrado e semeado
-só com o **quadro de militares** (via `MilitarSeeder` — dado real da seção,
-não demonstração) e compacta tudo em `build/agenda-missoes-<timestamp>.zip`.
+com o **quadro de militares** (via `MilitarSeeder` — dado real da seção, não
+demonstração) e com o **administrador inicial** (via `UserSeeder` —
+`admin@25bc.local`, senha padrão a trocar; ver Passo 6), e compacta tudo em
+`build/agenda-missoes-<timestamp>.zip`.
 
 O zip contém: código da aplicação, `vendor/` de produção, banco SQLite
-migrado com o quadro de militares, `.env.production.example`. **Não contém**:
+migrado (quadro de militares + admin inicial), as **fontes self-hosted**
+(`public/fonts/*.woff2` — Archivo e JetBrains Mono, para o app rodar sem
+Google Fonts na intranet offline) e `.env.production.example`. **Não contém**:
 `.env`, `.git`, `tests/`, `.claude/`, backups locais, e **nenhuma missão de
 demonstração** (`MissionSeeder` não roda no bundle de propósito).
+
+> **SQLite em modo WAL (Fase A4):** o `config/database.php` liga WAL
+> (`journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=5000`) para
+> aguentar melhor as leituras concorrentes do `wire:poll` sem travar escritas.
+> O banco do bundle é gerado em modo `DELETE` (arquivo único) e é convertido
+> para WAL automaticamente no primeiro uso na VM — nesse momento surgem os
+> arquivos auxiliares `database.sqlite-wal` e `database.sqlite-shm` ao lado do
+> banco (efêmeros, não versionados). O backup (`scripts/backup-sqlite.sh`) usa
+> `sqlite3 .backup`, que já faz o checkpoint do WAL corretamente.
 
 ---
 
@@ -189,6 +202,39 @@ O banco `database/database.sqlite` que veio no zip já está migrado (gerado
 no Passo 1), então o `migrate --force` acima deve rodar sem pendências —
 rode mesmo assim, para garantir que fica idempotente caso o schema mude numa
 próxima versão do bundle.
+
+### Trocar a senha do administrador inicial (obrigatório)
+
+O bundle já traz um usuário admin semeado (`admin@25bc.local`) com uma senha
+padrão pública — **troque-a no primeiro acesso**. Não há recuperação de senha
+por e-mail (a intranet é offline), então a redefinição é feita pelo comando
+`app:create-user` (cria um usuário novo OU redefine a senha de um existente).
+
+Para **redefinir a senha do admin semeado** (mantendo o papel de administrador
+— o `--admin` é obrigatório aqui, sem ele o usuário seria rebaixado):
+
+```bash
+cd /opt/agenda-missoes
+frankenphp php-cli artisan app:create-user --email=admin@25bc.local --admin
+```
+
+Ele pede a nova senha de forma oculta (mínimo 8 caracteres) e mantém o nome
+existente. Para **criar as contas dos demais operadores** da seção, informe os
+dados por opções ou de forma interativa, por exemplo:
+
+```bash
+# Usuário comum (sem --admin):
+frankenphp php-cli artisan app:create-user --name="Fulano de Tal" --email=fulano@25bc.local
+# Outro administrador:
+frankenphp php-cli artisan app:create-user --name="Ciclano" --email=ciclano@25bc.local --admin
+```
+
+> **Cuidado:** o papel (`is_admin`) é definido *só* pela flag `--admin`. Ao
+> redefinir a senha de um admin existente, inclua sempre `--admin`, senão o
+> comando o rebaixa para usuário comum.
+
+Depois de definir a senha real do admin, confirme que ela funciona na tela
+`/login`.
 
 ---
 

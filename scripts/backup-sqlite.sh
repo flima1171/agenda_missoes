@@ -28,12 +28,18 @@ mkdir -p "$BACKUP_DIR"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 DEST="$BACKUP_DIR/database-$TIMESTAMP.sqlite"
 
-# sqlite3 .backup faz uma cópia consistente mesmo com o banco em uso;
-# se o binário sqlite3 não estiver disponível, cai para cp simples.
+# sqlite3 .backup faz uma cópia consistente mesmo com o banco em uso e já
+# faz o checkpoint do WAL (Fase A4) — é o caminho preferido. Se o binário
+# sqlite3 não estiver disponível, cai para cp simples; nesse caso, como o
+# banco roda em modo WAL, é preciso copiar TAMBÉM os arquivos -wal e -shm
+# junto (com o mesmo nome-base do destino), senão o backup ficaria sem as
+# escritas ainda não integradas ao arquivo principal.
 if command -v sqlite3 >/dev/null 2>&1; then
     sqlite3 "$DB_FILE" ".backup '$DEST'"
 else
     cp "$DB_FILE" "$DEST"
+    [ -f "$DB_FILE-wal" ] && cp "$DB_FILE-wal" "$DEST-wal"
+    [ -f "$DB_FILE-shm" ] && cp "$DB_FILE-shm" "$DEST-shm"
 fi
 
 echo "[backup-sqlite] Backup criado: $DEST"

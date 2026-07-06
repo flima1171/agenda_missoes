@@ -64,6 +64,16 @@ foreach ($item in $ItemsToCopy) {
     }
 }
 
+# Fase A4: as fontes self-hosted (public/fonts/*.woff2) tem que ir no bundle,
+# senao a UI cai para fonte do sistema na VM offline. Como sao servidas de
+# public/ (ja copiado acima), so validamos que chegaram ao staging.
+$StageFonts = Join-Path $StageDir "public\fonts"
+$FontCount = @(Get-ChildItem -Path $StageFonts -Filter "*.woff2" -ErrorAction SilentlyContinue).Count
+if ($FontCount -lt 1) {
+    throw "Nenhuma fonte .woff2 encontrada em public/fonts/ do staging -- o app ficaria sem as fontes offline."
+}
+Write-Host "==> Fontes self-hosted incluidas: $FontCount arquivo(s) .woff2 em public/fonts/."
+
 # storage/ precisa existir com a estrutura de pastas que o Laravel espera, mas
 # sem conteudo dinamico de dev (sessoes, views compiladas, logs, backups).
 Copy-Item -Path (Join-Path $ProjectRoot "storage") -Destination (Join-Path $StageDir "storage") -Recurse -Force
@@ -91,6 +101,12 @@ foreach ($dir in $DynamicDirs) {
 Get-ChildItem -Path (Join-Path $StageDir "database") -Filter "*.sqlite*" -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
 
+# .env temporario, so para o artisan conseguir rodar as migrations aqui no
+# build. E APAGADO no finally abaixo (antes de zipar) -- cada instalacao real
+# deve gerar sua propria APP_KEY na VM (ver DEPLOY.md). Definido ANTES do try
+# para que o finally consiga remove-lo mesmo se algo falhar no meio.
+$TempEnv = Join-Path $StageDir ".env"
+
 Write-Host "==> Rodando 'composer install --no-dev' dentro do staging (nao afeta o vendor/ deste checkout)..."
 Push-Location $StageDir
 try {
@@ -101,11 +117,12 @@ try {
     $StageDb = Join-Path $StageDir "database\database.sqlite"
     New-Item -ItemType File -Force -Path $StageDb | Out-Null
 
-    # .env temporario, so para o artisan conseguir rodar as migrations aqui no
-    # build. E APAGADO antes de zipar -- cada instalacao real deve gerar sua
-    # propria APP_KEY na VM (ver DEPLOY.md).
-    $TempEnv = Join-Path $StageDir ".env"
     Copy-Item (Join-Path $StageDir ".env.production.example") $TempEnv -Force
+    # Fase A4: o banco de PRODUCAO roda em WAL (config/database.php), mas aqui
+    # no build forcamos journal_mode=DELETE para o .sqlite gerado ser um arquivo
+    # UNICO e consistente -- sem os auxiliares -wal/-shm no zip. Na VM, ao abrir
+    # o banco, o Laravel aplica PRAGMA journal_mode=WAL e o converte no 1o uso.
+    Add-Content -Path $TempEnv -Value "DB_JOURNAL_MODE=DELETE"
 
     & php artisan key:generate --ansi --force
     if ($LASTEXITCODE -ne 0) { throw "php artisan key:generate falhou" }
@@ -120,9 +137,14 @@ try {
     & php artisan db:seed --class=MilitarSeeder --force
     if ($LASTEXITCODE -ne 0) { throw "php artisan db:seed (MilitarSeeder) falhou" }
 
-    Remove-Item $TempEnv -Force
+    # UserSeeder cria o administrador inicial (admin@25bc.local / senha padrao
+    # a TROCAR no deploy via 'php artisan app:create-user' -- ver DEPLOY.md).
+    # Sem ele o app subiria sem nenhum usuario e a tela de login travaria o acesso.
+    & php artisan db:seed --class=UserSeeder --force
+    if ($LASTEXITCODE -ne 0) { throw "php artisan db:seed (UserSeeder) falhou" }
 }
 finally {
+    if (Test-Path $TempEnv) { Remove-Item $TempEnv -Force }
     Pop-Location
 }
 

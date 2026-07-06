@@ -23,6 +23,9 @@ yarn-error.log
 # Banco SQLite local (gerado no setup)
 /database/database.sqlite
 /database/*.sqlite-journal
+# Arquivos auxiliares do modo WAL (Fase A4) — efêmeros, nunca versionar
+/database/*.sqlite-wal
+/database/*.sqlite-shm
 
 # Backups locais gerados por scripts/backup-sqlite.sh
 /storage/app/backups

@@ -26,15 +26,14 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A3 concluída**. Branch de
+- **Fase em andamento:** Remediação pós-auditoria — **A4 concluída**. Branch de
   trabalho: `remediacao/pos-auditoria`.
-- **PRÓXIMA TAREFA:** **A4** — Offline & deploy hardening: self-host das fontes
-  (Archivo + JetBrains Mono `.woff2` em `public/fonts/` + `@font-face`, remover
-  `<link>` do Google Fonts), ligar WAL em `config/database.php`, revisar
-  `build-bundle.ps1` (`.env` no `finally`, semear admin, incluir `public/fonts/`)
-  e atualizar `DEPLOY.md`/`.env.production.example`. Detalhe em
-  `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** A5 (performance: paginação/escopo de queries e memoização).
+- **PRÓXIMA TAREFA:** **A5** — Performance: paginar/limitar histórico e "Todas as
+  missões", escopar as queries do dashboard/calendário por janela de data,
+  memoizar `people()`/`completers()`/`weekData()` no ciclo de render, e (opcional)
+  índice composto `(date, time)`. Detalhe em `.claude/prompts/remediacao-mestre.md`.
+- **Depois dela:** A6 (UX/acessibilidade: tema escuro em `/militares`/`/usuarios`,
+  nomes acessíveis, contraste do `--muted`).
 
 ---
 
@@ -645,6 +644,70 @@
   **PENDENTE:** nenhuma pendência de VM (tudo local/navegador). O contraste do erro
   de validação e o tema escuro em `/militares`/`/usuarios` seguem para a A6, como já
   previsto.
+
+- **2026-07-06** — **Remediação A4 concluída — Offline & deploy hardening.**
+  Antes de codar, li de verdade: `public/css/app.css` (topo, `:root`, `--mono`),
+  `resources/views/painel.blade.php`/`militares.blade.php` (os `<link>` do Google
+  Fonts) e as shells `auth/login.blade.php`/`usuarios.blade.php` (que já só usam
+  `app.css`, sem link de fonte), `config/database.php` (bloco `sqlite` com
+  `journal_mode/synchronous/busy_timeout = null`), `.gitignore`,
+  `scripts/backup-sqlite.sh`, `build-bundle.ps1`, `.env.production.example`,
+  `DEPLOY.md`, `database/seeders/UserSeeder.php` e `app/Console/Commands/CreateUser.php`.
+  Backup de `database/database.sqlite` no `%TEMP%` antes de subir o app (o WAL
+  converte o arquivo).
+  **(1) Fontes self-hosted (achado 2.3):** com internet nesta máquina, baixei do
+  Google Fonts (UA de navegador) os 4 `.woff2` — Archivo `latin`/`latin-ext` e
+  JetBrains Mono `latin`/`latin-ext` — para `public/fonts/` (validados por magic
+  bytes `wOF2`). São fontes VARIÁVEIS: a URL `latin` é a mesma para todos os pesos,
+  logo 1 arquivo por subset cobre a faixa inteira. Adicionei o bloco `@font-face` no
+  topo de `public/css/app.css` (`font-weight: 100 900` p/ Archivo, `100 800` p/
+  JetBrains; `unicode-range` copiados do próprio CSS do Google; `src: url("/fonts/…")`).
+  Removi os `<link rel="preconnect">` + o `<link>` de `css2?family=…` de
+  `painel.blade.php` e `militares.blade.php` (login/usuarios não tinham link e agora
+  também herdam as fontes via `app.css`). **Prova offline:** `preview_network`
+  registrou SÓ requisições a `localhost:8013` (inclusive `/fonts/archivo-latin.woff2`
+  e `/fonts/jetbrains-mono-latin.woff2`) — ZERO a `fonts.googleapis.com`/`gstatic.com`.
+  **(2) WAL (achado 8.1):** `config/database.php` bloco `sqlite` → `journal_mode` =
+  `env('DB_JOURNAL_MODE','WAL')`, `synchronous` = `env('DB_SYNCHRONOUS','NORMAL')`,
+  `busy_timeout` = `env('DB_BUSY_TIMEOUT',5000)`. Confirmei no framework
+  (`vendor/…/Connectors/SQLiteConnector.php`) que ele roda `pragma journal_mode=…`
+  quando a chave está `isset` (por isso saiu de `null` p/ valor). `.gitignore` passou
+  a ignorar `/database/*.sqlite-wal` e `-shm`. `scripts/backup-sqlite.sh`: no fallback
+  `cp` (sem `sqlite3`) agora copia também `-wal`/`-shm` p/ o backup ficar consistente.
+  **(3) `build-bundle.ps1` (achado 7.x):** `$TempEnv` definido ANTES do `try` e
+  removido no `finally` (não vaza `.env`/APP_KEY se algo falhar no meio); força
+  `DB_JOURNAL_MODE=DELETE` no `.env` temporário do build p/ o banco do zip ser um
+  arquivo único (sem `-wal`/`-shm`; converte p/ WAL na VM no 1º uso); semeia o admin
+  (`UserSeeder`) além do `MilitarSeeder`; assertiva de que `public/fonts/*.woff2`
+  entrou no staging (falha o build se sumir).
+  **(4) Docs:** `.env.production.example` (bloco WAL comentado — já é default no config
+  — + nota de troca de senha do admin) e `DEPLOY.md` (Passo 1: bundle agora semeia
+  admin e inclui as fontes; nota-blockquote sobre WAL/`-wal`/`-shm`/backup; Passo 6:
+  nova seção "Trocar a senha do administrador inicial" com o cuidado de que o papel
+  `is_admin` vem SÓ da flag `--admin`, então redefinir a senha do admin sem `--admin`
+  o rebaixaria — li o `CreateUser.php` p/ confirmar esse comportamento).
+  **Teste novo:** `tests/Feature/DatabaseConfigTest.php` — checa os 3 valores de config
+  e prova o COMPORTAMENTO num banco em ARQUIVO temporário (`journal_mode` vira `wal`),
+  já que o banco `:memory:` dos testes não vira WAL.
+  **VERIFICADO:** `php artisan test` → **44 testes / 127 asserções, exit 0** (era
+  42/123; +2 da A4); `vendor/bin/pint --test` → passed; `php -l` limpo em
+  `config/database.php` e no teste novo. **Navegador** (`preview_start` 8013, logado
+  como admin `admin@25bc.local`): fontes carregadas do próprio servidor,
+  `document.fonts.check` confirma Archivo 700 e JetBrains Mono 800 (cobrindo
+  `Seção nº ção ã õ ç`); `body` computa `Archivo…`, `.mono` computa `JetBrains Mono…`;
+  provado em CLARO e ESCURO e em mobile 375px; `preview_network` sem NENHUM domínio
+  externo; zero erro de console. WAL provado end-to-end no banco de dev rodando
+  (`pragma journal_mode`=wal, `synchronous`=1=NORMAL, `busy_timeout`=5000).
+  **`build-bundle.ps1` reexecutado de fato** (não só lido): zip gerado, extraído e
+  conferido — sem `.env`, 4 fontes em `public/fonts/`, só `database.sqlite` (sem
+  `-wal`/`-shm`), `militares`=6, `users`=1 (admin@25bc.local `is_admin=1`),
+  `missions`=0, `journal_mode=delete`. Removi o zip/extração temporária ao final; o
+  banco de dev ficou em WAL (estado novo pretendido) e o backup pré-WAL segue no
+  `%TEMP%`.
+  **PENDENTE DE VM (Debian/FrankenPHP real):** conversão/estabilidade do WAL sob
+  multi-worker do FrankenPHP; e o backup via `sqlite3 .backup` com o binário `sqlite3`
+  de verdade (nesta máquina Windows ele não está no PATH — o fallback `cp`+`-wal`/`-shm`
+  é o que roda aqui).
 
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
