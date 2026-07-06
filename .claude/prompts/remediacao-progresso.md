@@ -18,9 +18,58 @@
 - ✅ concluída (2026-07-06) — **A4** — Offline & deploy: self-host das fontes, ligar WAL, revisar `build-bundle.ps1` e docs
 - ✅ concluída (2026-07-06) — **A5** — Performance: paginação/escopo de queries e memoização
 - ✅ concluída (2026-07-06) — **A6** — UX / acessibilidade
-- ⬜ pendente — **A7** — Fechamento: suíte + Pint + audit + smoke completo + atualizar docs
+- ✅ concluída (2026-07-06) — **A7** — Fechamento: suíte + Pint + audit + smoke completo + atualizar docs
 
 ## Log de conclusão (só acrescente, nunca apague)
+- **2026-07-06 — A7 concluída (remediação encerrada).** Rodada final de fechamento,
+  sem mudança de código de aplicação — só verificação de ponta a ponta e docs.
+  **Checklist "pronto":** `php artisan test` → **57 testes / 161 asserções, exit 0**
+  (mesma contagem da A6 — nenhuma regressão); `vendor/bin/pint --test` → limpo;
+  `composer audit` → "No security vulnerability advisories found."; `php artisan
+  migrate:status` → todas as 9 migrations "Ran", sem pendências.
+  **Smoke manual completo no navegador** (`preview_start`, porta 8013): a sessão já
+  estava autenticada como admin (cookie persistido de sessões anteriores) — usei
+  isso para validar o caminho "logado" e também forcei o caminho "guest": cliquei
+  no botão real "Sair" (`form[action*=logout]`), confirmei redirecionamento para
+  `/login`, e confirmei via `fetch({redirect:'manual'})` que `/`, `/militares` e
+  `/usuarios` redirecionam (guest bloqueado). Login de novo via formulário real
+  (`admin@25bc.local`/senha semeada) → volta para `/`. Percorridas as 6 telas do
+  escopo (visão geral, calendário, todas as missões, concluídas, modal "Nova
+  missão" — foco inicial confirmado em `#f-title` — e modo monitor/TV, este último
+  em 1280px pois o botão fica oculto abaixo de ~1024px, comportamento responsivo
+  pré-existente) mais `/militares` e `/usuarios` (ambas herdando o tema salvo no
+  `localStorage`, toggle testado explicitamente em `/militares` com `.click()` via
+  JS — a mesma peculiaridade de sempre, `preview_click` não disparou o clique real
+  da primeira vez). Testado em **375px** (mobile, painel com sidebar em barra
+  inferior de ícones, sem overflow) e **768px** (tablet, sidebar lateral,
+  cards/tabela OK). **Zero erro de console** em toda a sessão. `preview_network`
+  listado por completo ao final: **nenhuma requisição a domínio externo** (só
+  `localhost:8013` — fontes, CSS, Livewire — confirmando que a A7 não regrediu o
+  invariante offline da A4). Nenhum dado foi alterado além de login/logout (que já
+  é o comportamento esperado, grava `activity_log`) e abrir/fechar o modal sem
+  salvar — nenhuma missão de teste ficou no banco, não foi necessário restaurar
+  backup.
+  **Docs:** `README.md` reescrito por completo (estava descrevendo o estado
+  PRÉ-remediação: Laravel 11, JS puro consumindo API REST, sem login, militares/
+  responsáveis fixos no código, deploy via Nginx+PHP-FPM) — agora descreve Laravel
+  12 + Livewire v4, login obrigatório + trilha de auditoria, papéis admin/comum,
+  `/militares`+`/usuarios`, aponta o deploy de produção para o pipeline FrankenPHP
+  já documentado em `DEPLOY.md` (mantendo só a instalação local simples inline) e
+  atualiza a árvore de `Estrutura` para os arquivos reais de hoje.
+  `DEPLOY.md` já estava completo e correto (escrito/atualizado nas Fases A4);
+  revisado de novo linha a linha nesta rodada e nenhuma mudança foi necessária.
+  **PENDENTE DE VERIFICAÇÃO NA VM real** (não é possível confirmar fora do
+  Proxmox/Debian real — listado por transparência, não é bloqueio desta fase):
+  execução do binário `frankenphp` de fato na VM e a extensão `pdo_sqlite` nesse
+  binário; se o proxy da OM libera os domínios do instalador oficial (fallback via
+  `apt`); permissões do usuário `www-data`/dono dos arquivos e comportamento de
+  restart da unit `systemd`; conversão para modo WAL sob múltiplos workers do
+  FrankenPHP; `sqlite3` disponível no Debian real para o backup via `.backup`
+  (documentado como fallback para `cp` se ausente). Nenhuma dessas pendências é
+  nova desta fase — todas já vinham listadas nas Fases A1/A4 e são, por natureza,
+  só verificáveis no ambiente real de produção.
+  **Remediação pós-auditoria ENCERRADA** — todas as 8 fases (A0–A7) concluídas.
+
 - **2026-07-06 — A6 concluída.** Antes de mexer, li de verdade `painel.blade.php` (shell +
   componente), `militares.blade.php`/`usuarios.blade.php`, `icon.blade.php`, `app.css`
   (variáveis `--muted`, regras de `.theme-dark`) e todos os partials com botões só-ícone

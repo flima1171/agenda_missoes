@@ -26,13 +26,13 @@
 
 ## 📍 ESTADO ATUAL
 
-- **Fase em andamento:** Remediação pós-auditoria — **A6 concluída**. Branch de
-  trabalho: `remediacao/pos-auditoria`.
-- **PRÓXIMA TAREFA:** **A7** — Fechamento: rodar suíte + Pint + `composer audit` +
-  `migrate:status`, smoke manual completo (login → 6 telas → modal → monitor →
-  `/militares`/`/usuarios`, claro/escuro, 375/768/1280), atualizar `DEPLOY.md`/`README.md`,
-  listar pendências de VM. Detalhe em `.claude/prompts/remediacao-mestre.md`.
-- **Depois dela:** remediação encerrada.
+- **Fase em andamento:** Remediação pós-auditoria — **A7 concluída. REMEDIAÇÃO
+  ENCERRADA** (todas as fases A0–A7 concluídas). Branch de trabalho:
+  `remediacao/pos-auditoria`.
+- **PRÓXIMA TAREFA:** nenhuma tarefa de remediação pendente. Próximo passo é do
+  usuário: revisar o branch `remediacao/pos-auditoria` e decidir sobre merge em
+  `evolucao/roadmap`/`main`, e agendar a validação real na VM Proxmox/Debian
+  (pendências listadas no registro da A7 abaixo).
 
 ---
 
@@ -804,6 +804,51 @@
   offline da A4 preservado). Nenhum dado foi alterado (só toggles de tema e abrir/fechar
   modal sem salvar) — banco seguiu `missions=8, militares=6, users=1`.
   **PENDENTE:** nenhuma pendência de VM nesta fase. Segue para a A7 (fechamento).
+
+- **2026-07-06** — **Remediação A7 concluída — Fechamento. REMEDIAÇÃO
+  ENCERRADA (A0–A7).** Rodada final: nenhuma mudança de código de aplicação, só
+  verificação de ponta a ponta e atualização de documentação.
+  **Checklist "pronto":** `php artisan test` → **57 testes / 161 asserções, exit
+  0** (mesma contagem da A6, sem regressão); `vendor/bin/pint --test` → limpo;
+  `composer audit` → "No security vulnerability advisories found."; `php artisan
+  migrate:status` → 9 migrations, todas "Ran".
+  **Smoke manual completo** (`preview_start`, porta 8013): clicando no botão real
+  "Sair" confirmei o logout e o redirecionamento para `/login`; via
+  `fetch({redirect:'manual'})` confirmei que `/`, `/militares` e `/usuarios`
+  redirecionam quando não autenticado (guest bloqueado); login de novo pelo
+  formulário real (`admin@25bc.local`) voltou para `/`. Percorridas as 6 telas
+  (visão geral, calendário, todas as missões, concluídas, modal "Nova missão" —
+  foco inicial em `#f-title` confirmado — e modo monitor/TV) mais `/militares` e
+  `/usuarios`, com o toggle de tema testado explicitamente (`.click()` via JS —
+  a mesma peculiaridade de sempre: o primeiro `preview_click` no botão de tema
+  não disparou o clique real). Testado em 375px (mobile) e 768px (tablet), sem
+  overflow. **Zero erro de console** em toda a sessão. `preview_network`
+  conferido do início ao fim: **nenhuma requisição a domínio externo** (só
+  `localhost:8013`), confirmando que a A7 não regrediu o invariante offline da
+  A4. Nenhum dado foi alterado além de login/logout (grava `activity_log`, é o
+  comportamento esperado) e abrir/fechar o modal sem salvar — sem missão de
+  teste sobrando no banco, sem necessidade de restaurar backup.
+  **Docs:** `README.md` (raiz) reescrito por completo — estava descrevendo o
+  estado PRÉ-remediação (Laravel 11, JS puro consumindo API REST removida na
+  A2, sem login, militares/responsáveis fixos no código, deploy via
+  Nginx+PHP-FPM). Agora descreve Laravel 12 + Livewire v4, login obrigatório +
+  trilha de auditoria, papéis admin/comum, `/militares` + `/usuarios`, aponta o
+  deploy de produção para o pipeline FrankenPHP já documentado em `DEPLOY.md`
+  e atualiza a árvore de `Estrutura` para os arquivos reais de hoje. `DEPLOY.md`
+  foi revisado linha a linha nesta rodada (já tinha sido escrito/atualizado nas
+  Fases A2/A4) e nenhuma mudança foi necessária — continua correto.
+  **PENDENTE DE VERIFICAÇÃO NA VM real** (não é possível confirmar fora do
+  Proxmox/Debian real; nenhuma é nova desta fase, todas já vinham listadas nas
+  Fases A1/A4, repetidas aqui por transparência no fechamento): execução de
+  fato do binário `frankenphp` na VM e a extensão `pdo_sqlite` nesse binário; se
+  o proxy da OM libera os domínios do instalador oficial (fallback via `apt`);
+  permissões do usuário `www-data`/dono dos arquivos e comportamento de
+  restart da unit `systemd`; conversão para modo WAL sob múltiplos workers do
+  FrankenPHP; disponibilidade do binário `sqlite3` no Debian real para o backup
+  via `.backup` (documentado fallback para `cp` se ausente).
+  **Próximo passo (fora do escopo desta remediação):** revisão humana do branch
+  `remediacao/pos-auditoria` e decisão sobre merge em `evolucao/roadmap`/`main`,
+  e a validação na VM real listada acima.
 
 - [x] **Fase 0** — Preparação: branch git + commit do estado atual + ler arquivos-chave.
 - [x] **Fase 1** — Blindagem de produção: bloquear `/missions/reset` fora de `local`,
