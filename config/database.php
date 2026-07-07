@@ -15,8 +15,8 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            // Fase A4: WAL melhora leituras concorrentes (o painel usa wire:poll)
-            // sem bloquear escritas; synchronous=NORMAL é seguro com WAL e mais
+            // WAL melhora leituras concorrentes (o painel usa wire:poll) sem
+            // bloquear escritas; synchronous=NORMAL é seguro com WAL e mais
             // rápido que FULL; busy_timeout evita "database is locked" sob carga.
             'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
             'journal_mode' => env('DB_JOURNAL_MODE', 'WAL'),

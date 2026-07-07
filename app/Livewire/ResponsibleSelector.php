@@ -31,10 +31,10 @@ class ResponsibleSelector extends Component
     }
 
     /**
-     * Recebe do componente pai (App\Livewire\Painel::openNew()/openEdit(), 100%
-     * Livewire desde a Fase 5) a lista de responsáveis da missão sendo aberta
-     * para edição/criação, já que este componente Livewire persiste no DOM
-     * entre uma abertura de modal e outra.
+     * Recebe do componente pai (App\Livewire\Painel::openNew()/openEdit()) a
+     * lista de responsáveis da missão sendo aberta para edição/criação, já
+     * que este componente Livewire persiste no DOM entre uma abertura de
+     * modal e outra.
      *
      * @param  array<int, string>  $list
      */
@@ -74,10 +74,9 @@ class ResponsibleSelector extends Component
     }
 
     /**
-     * Avisa o componente pai (Fase 5: App\Livewire\Painel) qual é a lista
-     * atual de responsáveis escolhidos, sem valores vazios. Substitui a
-     * ponte de checkbox escondido usada até a Fase 4 (o formulário de
-     * missão agora é 100% Livewire, sem JS lendo o DOM).
+     * Avisa o componente pai (App\Livewire\Painel) qual é a lista atual de
+     * responsáveis escolhidos, sem valores vazios. O formulário de missão é
+     * 100% Livewire, sem JS lendo o DOM.
      *
      * @return array<int, string>
      */
@@ -94,8 +93,8 @@ class ResponsibleSelector extends Component
      * dela (para não sumir do <select>) + quem ainda não foi escolhido em
      * nenhuma outra linha.
      *
-     * Achado 1.3 (A3): um responsável já atribuído mas inativado depois não
-     * está mais em people() (só lista ativos). Sem tratá-lo aqui, o <select>
+     * Um responsável já atribuído mas inativado depois não está mais em
+     * people() (só lista ativos). Sem tratá-lo aqui, o <select>
      * da linha ficaria SEM a opção do valor atual e, ao salvar, o responsável
      * seria silenciosamente perdido. Por isso o valor atual entra na lista
      * mesmo fora de people() — a view o marca como "(inativo)".

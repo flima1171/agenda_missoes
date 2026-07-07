@@ -1,12 +1,10 @@
-{{-- Fase A6 (achado 5.2): todo ícone aqui é puramente decorativo — o nome
-     acessível do controle vem do texto visível ou do aria-label do próprio
-     botão/link, nunca do SVG. Por isso aria-hidden fica ligado por padrão;
-     o prop existe só para o caso (hoje inexistente) de um ícone precisar
-     ser o único conteúdo semântico de algo. --}}
+{{-- Todo ícone aqui é puramente decorativo — o nome acessível do controle
+     vem do texto visível ou do aria-label do próprio botão/link, nunca do
+     SVG. Por isso aria-hidden fica ligado por padrão; o prop existe só para
+     o caso (hoje inexistente) de um ícone precisar ser o único conteúdo
+     semântico de algo. --}}
 @props(['name', 'decorative' => true])
 @php
-    // Mesmos ícones SVG que existiam em ICONS (public/js/app.js), só que
-    // renderizados pelo Blade em vez de injetados via innerHTML pelo JS.
     $paths = [
         'grid' => '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
         'calendar' => '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>',

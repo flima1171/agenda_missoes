@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Fase A4: trava o hardening de SQLite (modo WAL) feito em config/database.php.
+ * Cobre o hardening de SQLite (modo WAL) feito em config/database.php.
  * O banco dos testes é :memory: (não vira WAL), então além de checar os valores
  * de config validamos o COMPORTAMENTO num banco em ARQUIVO temporário: o
  * SQLiteConnector do Laravel aplica `pragma journal_mode = WAL` ao conectar.

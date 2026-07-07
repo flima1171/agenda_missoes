@@ -7,8 +7,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Fase A2: restringe rotas administrativas (gestão de militares e de usuários)
- * a quem tem is_admin. Usuário comum gere missões, mas não a base de pessoas.
+ * Restringe rotas administrativas (gestão de militares e de usuários) a
+ * quem tem is_admin. Usuário comum gere missões, mas não a base de pessoas.
  */
 class EnsureUserIsAdmin
 {

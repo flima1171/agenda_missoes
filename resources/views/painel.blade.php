@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#101b17">
+    <meta name="theme-color" content="#0d1b2a">
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
     <title>Agenda de Missões — {{ config('app.name') }}</title>
-    {{-- Fase A4: fontes self-hosted via @font-face em public/css/app.css (public/fonts/).
-         Não há mais link ao Google Fonts — o app roda 100% offline. --}}
+    {{-- Fontes self-hosted via @font-face em public/css/app.css (public/fonts/).
+         Não há link ao Google Fonts — o app roda 100% offline. --}}
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     @livewireStyles
 </head>
@@ -14,15 +15,15 @@
     <livewire:painel />
 
     {{--
-        Fase 5: única ponte de JS que sobrou (o resto virou 100% Livewire/PHP).
-        São 4 coisas que só o navegador pode fazer, não o servidor:
+        Única ponte de JS que sobrou (o resto é 100% Livewire/PHP). São 4
+        coisas que só o navegador pode fazer, não o servidor:
         1) ler o tema salvo no localStorage e mandar pro componente ao carregar;
         2) persistir o tema no localStorage quando o componente avisa que mudou;
         3) pedir/sair da tela cheia (Fullscreen API) quando o modo monitor liga/desliga,
            e avisar o componente se o navegador sair da tela cheia sozinho (ex.: Esc).
-        4) (Fase A6) focar o 1º campo do modal ao abrir e prender o foco (Tab/Shift+Tab)
-           dentro dele enquanto estiver aberto — acessibilidade que o DOM/CSS não fazem
-           sozinhos (achado 5.5).
+        4) focar o 1º campo do modal ao abrir e prender o foco (Tab/Shift+Tab)
+           dentro dele enquanto estiver aberto — acessibilidade que o DOM/CSS não
+           fazem sozinhos.
         Nenhuma regra de negócio mora aqui — é só o encaixe dos eventos
         Livewire.dispatch()/Livewire.on() com APIs do navegador.
     --}}

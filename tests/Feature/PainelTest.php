@@ -10,9 +10,9 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Baseline (Fase A0): fotografa o comportamento ATUAL do componente principal
- * (App\Livewire\Painel) antes de mudar qualquer coisa. Não é sobre o que "deveria"
- * ser — é sobre o que HOJE acontece, para as fases seguintes não regredirem sem aviso.
+ * Fotografa o comportamento do componente principal (App\Livewire\Painel).
+ * Não é sobre o que "deveria" ser — é sobre o que HOJE acontece, para
+ * mudanças futuras não regredirem sem aviso.
  */
 class PainelTest extends TestCase
 {

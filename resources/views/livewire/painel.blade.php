@@ -14,7 +14,7 @@
     <div class="app">
         <aside class="sidebar">
             <div class="brand">
-                <div class="brand-mark"><x-icon name="shield" /></div>
+                <div class="brand-mark"><img src="{{ asset('images/logo-comunicacoes.png') }}" alt=""></div>
                 <div><strong>Painel de Missões</strong><span>25º Batalhão de Caçadores</span></div>
             </div>
             <div class="nav-label">Painel</div>
@@ -26,7 +26,7 @@
             </nav>
             @if (auth()->user()->is_admin)
                 <div class="nav-label">Administração</div>
-                <nav class="nav">
+                <nav class="nav nav-admin">
                     <a class="nav-btn" href="{{ route('militares.manage') }}"><span>Militares</span></a>
                     <a class="nav-btn" href="{{ route('usuarios.manage') }}"><span>Usuários</span></a>
                 </nav>
@@ -223,10 +223,13 @@
         <div class="cal-tv">
             <header class="tv-head">
                 <div class="tv-brand">
-                    <div class="mark">25º BC</div>
+                    <div class="mark"><img src="{{ asset('images/logo-comunicacoes.png') }}" alt=""></div>
                     <div><strong>Calendário da Seção</strong><span>25º Batalhão de Caçadores</span></div>
                 </div>
-                <div class="tv-clock"><x-live-clock /><span><x-live-clock long :year="false" /></span></div>
+                <div class="tv-head-actions">
+                    <div class="tv-clock"><x-live-clock /><span><x-live-clock long :year="false" /></span></div>
+                    <button type="button" class="tv-theme-btn" title="Alternar modo escuro" aria-label="Alternar modo escuro" wire:click="toggleTheme"><x-icon :name="$darkMode ? 'sun' : 'moon'" /></button>
+                </div>
             </header>
             <div class="tv-cal-legend">
                 <strong class="mono">{{ $calTv['weekLabel'] }}</strong>

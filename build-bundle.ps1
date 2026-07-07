@@ -14,6 +14,10 @@
 .PARAMETER OutputDir
     Pasta onde o .zip final sera salvo. Padrao: .\build dentro do projeto.
 
+.PARAMETER SkipFrankenPhp
+    Nao baixa/inclui o binario do FrankenPHP no bundle (use se ja for levar o
+    binario separado, ou se a maquina do build nao tiver internet agora).
+
 .EXAMPLE
     pwsh -File build-bundle.ps1
 
@@ -23,7 +27,8 @@
 #>
 
 param(
-    [string]$OutputDir
+    [string]$OutputDir,
+    [switch]$SkipFrankenPhp
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,7 +60,7 @@ Write-Host "==> Copiando arquivos do projeto para staging (sem vendor/, .git, .c
 $ItemsToCopy = @(
     "app", "bootstrap", "config", "database", "public", "resources", "routes",
     "scripts", "artisan", "composer.json", "composer.lock",
-    ".env.production.example"
+    ".env.production.example", "install.sh", "update.sh"
 )
 foreach ($item in $ItemsToCopy) {
     $src = Join-Path $ProjectRoot $item
@@ -64,9 +69,9 @@ foreach ($item in $ItemsToCopy) {
     }
 }
 
-# Fase A4: as fontes self-hosted (public/fonts/*.woff2) tem que ir no bundle,
-# senao a UI cai para fonte do sistema na VM offline. Como sao servidas de
-# public/ (ja copiado acima), so validamos que chegaram ao staging.
+# As fontes self-hosted (public/fonts/*.woff2) tem que ir no bundle, senao a
+# UI cai para fonte do sistema na VM offline. Como sao servidas de public/
+# (ja copiado acima), so validamos que chegaram ao staging.
 $StageFonts = Join-Path $StageDir "public\fonts"
 $FontCount = @(Get-ChildItem -Path $StageFonts -Filter "*.woff2" -ErrorAction SilentlyContinue).Count
 if ($FontCount -lt 1) {
@@ -118,8 +123,8 @@ try {
     New-Item -ItemType File -Force -Path $StageDb | Out-Null
 
     Copy-Item (Join-Path $StageDir ".env.production.example") $TempEnv -Force
-    # Fase A4: o banco de PRODUCAO roda em WAL (config/database.php), mas aqui
-    # no build forcamos journal_mode=DELETE para o .sqlite gerado ser um arquivo
+    # O banco de PRODUCAO roda em WAL (config/database.php), mas aqui no
+    # build forcamos journal_mode=DELETE para o .sqlite gerado ser um arquivo
     # UNICO e consistente -- sem os auxiliares -wal/-shm no zip. Na VM, ao abrir
     # o banco, o Laravel aplica PRAGMA journal_mode=WAL e o converte no 1o uso.
     Add-Content -Path $TempEnv -Value "DB_JOURNAL_MODE=DELETE"
@@ -137,7 +142,7 @@ try {
     & php artisan db:seed --class=MilitarSeeder --force
     if ($LASTEXITCODE -ne 0) { throw "php artisan db:seed (MilitarSeeder) falhou" }
 
-    # UserSeeder cria o administrador inicial (admin@25bc.local / senha padrao
+    # UserSeeder cria o administrador inicial (usuario "admin" / senha padrao
     # a TROCAR no deploy via 'php artisan app:create-user' -- ver DEPLOY.md).
     # Sem ele o app subiria sem nenhum usuario e a tela de login travaria o acesso.
     & php artisan db:seed --class=UserSeeder --force
@@ -148,6 +153,24 @@ finally {
     Pop-Location
 }
 
+if (-not $SkipFrankenPhp) {
+    # Baixa o binario Linux/glibc do FrankenPHP e inclui no proprio bundle,
+    # para a VM so precisar descompactar e rodar "sudo ./install.sh" -- sem
+    # passo manual separado de baixar/levar o FrankenPHP (ver DEPLOY.md).
+    $CacheDir = Join-Path $OutputDir ".cache"
+    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+    $FrankenPhpCache = Join-Path $CacheDir "frankenphp-linux-x86_64-gnu"
+    if (-not (Test-Path $FrankenPhpCache)) {
+        Write-Host "==> Baixando FrankenPHP (Linux/glibc)... fica em cache em build\.cache para os proximos builds."
+        Invoke-WebRequest -Uri "https://github.com/php/frankenphp/releases/latest/download/frankenphp-linux-x86_64-gnu" -OutFile $FrankenPhpCache
+    } else {
+        Write-Host "==> Usando FrankenPHP em cache (build\.cache) -- apague o arquivo ali para forcar um novo download."
+    }
+    Copy-Item $FrankenPhpCache (Join-Path $StageDir "frankenphp") -Force
+} else {
+    Write-Host "==> -SkipFrankenPhp: bundle NAO vai incluir o binario do FrankenPHP -- leve-o separado."
+}
+
 Write-Host "==> Compactando bundle em $ZipPath ..."
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 Compress-Archive -Path (Join-Path $StageDir "*") -DestinationPath $ZipPath -CompressionLevel Optimal
@@ -156,6 +179,12 @@ Remove-Item $StageDir -Recurse -Force
 
 Write-Host ""
 Write-Host "Bundle gerado: $ZipPath"
-Write-Host "Contem: codigo + vendor/ (producao) + database/database.sqlite migrado (sem dados de demo)."
+if ($SkipFrankenPhp) {
+    Write-Host "Contem: codigo + vendor/ (producao) + database/database.sqlite migrado + install.sh/update.sh."
+    Write-Host "NAO contem o binario do FrankenPHP (rodou com -SkipFrankenPhp) -- leve-o separado para a VM."
+} else {
+    Write-Host "Contem: codigo + vendor/ (producao) + database/database.sqlite migrado + binario do FrankenPHP + install.sh/update.sh."
+}
 Write-Host "NAO contem: .env, .git, tests/, backups locais, .claude."
-Write-Host "Proximo passo: ver DEPLOY.md para levar este zip e o binario do FrankenPHP para a VM."
+Write-Host ""
+Write-Host "Proximo passo (na VM): descompacte o zip e rode 'sudo ./install.sh' -- ver DEPLOY.md."

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 /**
- * Fase A2: comando offline para criar/redefinir usuário (sem "esqueci a senha").
+ * Comando offline para criar/redefinir usuário (sem "esqueci a senha").
  */
 class CreateUserCommandTest extends TestCase
 {
@@ -18,12 +18,12 @@ class CreateUserCommandTest extends TestCase
     {
         $this->artisan('app:create-user', [
             '--name' => 'Admin da VM',
-            '--email' => 'admin@25bc.local',
+            '--username' => 'admin',
             '--password' => 'senha1234',
             '--admin' => true,
         ])->assertSuccessful();
 
-        $user = User::where('email', 'admin@25bc.local')->first();
+        $user = User::where('username', 'admin')->first();
         $this->assertNotNull($user);
         $this->assertTrue($user->is_admin);
         $this->assertTrue(Hash::check('senha1234', $user->password));
@@ -32,28 +32,28 @@ class CreateUserCommandTest extends TestCase
     public function test_redefine_senha_de_usuario_existente(): void
     {
         $user = User::factory()->create([
-            'email' => 'sgt@25bc.local',
+            'username' => 'sgt',
             'password' => Hash::make('antiga123'),
         ]);
 
         $this->artisan('app:create-user', [
-            '--email' => 'sgt@25bc.local',
+            '--username' => 'sgt',
             '--password' => 'novasenha123',
         ])->assertSuccessful();
 
         $this->assertTrue(Hash::check('novasenha123', $user->refresh()->password));
         // Não duplica o usuário.
-        $this->assertSame(1, User::where('email', 'sgt@25bc.local')->count());
+        $this->assertSame(1, User::where('username', 'sgt')->count());
     }
 
     public function test_recusa_senha_curta(): void
     {
         $this->artisan('app:create-user', [
             '--name' => 'Fulano',
-            '--email' => 'fulano@25bc.local',
+            '--username' => 'fulano',
             '--password' => 'curta',
         ])->assertFailed();
 
-        $this->assertDatabaseMissing('users', ['email' => 'fulano@25bc.local']);
+        $this->assertDatabaseMissing('users', ['username' => 'fulano']);
     }
 }

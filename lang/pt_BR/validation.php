@@ -7,11 +7,10 @@ declare(strict_types=1);
 | Linhas de idioma de validação (pt-BR)
 |--------------------------------------------------------------------------
 |
-| Traduções padrão das mensagens de validação do Laravel para pt-BR.
-| Criado na Remediação A3 — antes disso o projeto não tinha lang/, então as
-| mensagens saíam em inglês ("The form.title field is required."). Os nomes
-| amigáveis de cada campo ficam em validationAttributes() de cada componente
-| Livewire (App\Livewire\Painel, App\Livewire\MilitaresManager).
+| Traduções padrão das mensagens de validação do Laravel para pt-BR — sem
+| elas, as mensagens saem em inglês ("The form.title field is required.").
+| Os nomes amigáveis de cada campo ficam em validationAttributes() de cada
+| componente Livewire (App\Livewire\Painel, App\Livewire\MilitaresManager).
 |
 */
 

@@ -12,11 +12,10 @@ use Livewire\Attributes\On;
 use Livewire\Component;
 
 /**
- * Fase 5: substitui public/js/app.js. Toda a interatividade do painel
- * (visão geral, calendário, tabela de missões, concluídas, modal, modo
- * monitor) vira estado/métodos deste componente. O `render()` pré-calcula
- * tudo em "view models" (arrays simples) para a view ficar só exibindo
- * dados, sem lógica.
+ * Toda a interatividade do painel (visão geral, calendário, tabela de
+ * missões, concluídas, modal, modo monitor) vive no estado/métodos deste
+ * componente. O `render()` pré-calcula tudo em "view models" (arrays
+ * simples) para a view ficar só exibindo dados, sem lógica.
  */
 class Painel extends Component
 {
@@ -70,7 +69,7 @@ class Painel extends Component
 
     private const CAL_END = 18;
 
-    /** Fase A5: tamanho da página de "Todas as missões" e "Concluídas". */
+    /** Tamanho da página de "Todas as missões" e "Concluídas". */
     private const LIST_PAGE_SIZE = 50;
 
     public int $tableLimit = self::LIST_PAGE_SIZE;
@@ -78,9 +77,9 @@ class Painel extends Component
     public int $historyLimit = self::LIST_PAGE_SIZE;
 
     /**
-     * Fase A5: cache por render (a instância do Livewire é recriada a cada
-     * request, então isto só evita recalcular a MESMA consulta/valor mais de
-     * uma vez dentro do MESMO render() — não persiste entre requisições).
+     * Cache por render (a instância do Livewire é recriada a cada request,
+     * então isto só evita recalcular a MESMA consulta/valor mais de uma vez
+     * dentro do MESMO render() — não persiste entre requisições).
      */
     private ?array $peopleCache = null;
 
@@ -267,8 +266,8 @@ class Painel extends Component
         ];
         $this->showModal = true;
         $this->dispatch('set-responsibles', list: []);
-        // A6: o shell (painel.blade.php) escuta este evento para focar o
-        // primeiro campo do modal (achado 5.5 — foco inicial acessível).
+        // O shell (painel.blade.php) escuta este evento para focar o
+        // primeiro campo do modal (acessibilidade: foco inicial previsível).
         $this->dispatch('modal-opened');
     }
 
@@ -452,7 +451,7 @@ class Painel extends Component
 
     private function fallbackCompleter(Mission $m): ?string
     {
-        // Fase A2: sugere quem está logado como autor da conclusão (é quem está
+        // Sugere quem está logado como autor da conclusão (é quem está
         // clicando). Continua sendo só uma sugestão — o <select> é editável.
         if ($nome = auth()->user()?->nomeExibicao()) {
             return $nome;
@@ -488,10 +487,10 @@ class Painel extends Component
 
     private function actualStatus(Mission $m): string
     {
-        // Decisão confirmada com o usuário (A3): uma missão PODE estar "em andamento"
+        // Decisão confirmada com o usuário: uma missão PODE estar "em andamento"
         // e, ainda assim, "atrasada". Portanto qualquer missão não concluída com
-        // data/hora já no passado é exibida como "atrasada" — só a conclusão remove
-        // o rótulo. (Achado de auditoria 1.1 revisto como comportamento intencional.)
+        // data/hora já no passado é exibida como "atrasada" — só a conclusão
+        // remove o rótulo.
         return $m->status !== 'concluida' && $this->fromISO($m->date, $m->time)->lt(now())
             ? 'atrasada'
             : $m->status;
@@ -550,8 +549,8 @@ class Painel extends Component
     // ---------- view models ----------
 
     /**
-     * Fase A5: recebe as coleções já escopadas por `render()` — $open (todas
-     * as não concluídas, de qualquer data, pois uma missão "atrasada" pode ser
+     * Recebe as coleções já escopadas por `render()` — $open (todas as não
+     * concluídas, de qualquer data, pois uma missão "atrasada" pode ser
      * antiga) e $todayAny/$weekMissions (só a janela de data necessária).
      *
      * @return array<int, array<string, mixed>>
@@ -622,9 +621,8 @@ class Painel extends Component
     }
 
     /**
-     * Fase A5: memoizado — hoje era chamado 2-3× por render (stats, view model
-     * "week" e o modo monitor) com a MESMA janela; sem cache recalculava tudo
-     * de novo cada vez.
+     * Memoizado — chamado 2-3× por render (stats, view model "week" e o modo
+     * monitor) com a MESMA janela; sem cache recalculava tudo de novo cada vez.
      *
      * @return array{doneWeek: int, total: int, pct: int}
      */
@@ -652,7 +650,7 @@ class Painel extends Component
         foreach ($missions->where('status', '!=', 'concluida') as $m) {
             foreach ($this->respList($m) as $p) {
                 // "Toda a seção" não é um militar — não faz sentido contá-la como
-                // carga individual ao lado das pessoas (A3, achado 1.4).
+                // carga individual ao lado das pessoas.
                 if ($p === 'Toda a seção') {
                     continue;
                 }
@@ -671,10 +669,10 @@ class Painel extends Component
     }
 
     /**
-     * Fase A5: pagina "Todas as missões" (achado 4.1) — a segmentação por
-     * status é calculada em memória (`actualStatus` é derivado, não é coluna),
-     * então o limite é aplicado DEPOIS do filtro, e o total real (antes do
-     * limite) volta junto para a view decidir se mostra "Carregar mais".
+     * Pagina "Todas as missões" — a segmentação por status é calculada em
+     * memória (`actualStatus` é derivado, não é coluna), então o limite é
+     * aplicado DEPOIS do filtro, e o total real (antes do limite) volta junto
+     * para a view decidir se mostra "Carregar mais".
      *
      * @return array{rows: array<int, array<string, mixed>>, total: int}
      */
@@ -749,9 +747,9 @@ class Painel extends Component
             ];
         }
 
-        // Fase 6: a faixa 07h-18h é só a baseline (evita achatar o grid em
-        // semanas vazias). Se alguma missão da semana exibida cair fora dela,
-        // a faixa se expande pra incluir a hora — sem isso a missão fica
+        // A faixa 07h-18h é só a baseline (evita achatar o grid em semanas
+        // vazias). Se alguma missão da semana exibida cair fora dela, a
+        // faixa se expande pra incluir a hora — sem isso a missão fica
         // salva no banco mas nunca aparece em nenhuma célula do grid.
         $weekIsos = collect($days)->pluck('iso');
         $missionHours = $missions
@@ -790,8 +788,8 @@ class Painel extends Component
     }
 
     /**
-     * Fase A5: recebe $open (não concluídas, qualquer data — para "próxima
-     * missão" poder achar uma pendente antiga) e $todayAny/$weekMissions (já
+     * Recebe $open (não concluídas, qualquer data — para "próxima missão"
+     * poder achar uma pendente antiga) e $todayAny/$weekMissions (já
      * escopadas por `render()` à janela de data que a TV realmente exibe).
      *
      * @return array<string, mixed>
@@ -842,12 +840,12 @@ class Painel extends Component
 
     public function render()
     {
-        // Fase A5 (achado 4.1): antes, uma única `Mission::orderBy(...)->get()`
-        // carregava TODA a tabela (inclusive anos de missões já concluídas) em
-        // toda requisição, mesmo com `wire:poll`. Agora cada view model recebe
-        // só a janela de data que realmente precisa:
+        // Uma única `Mission::orderBy(...)->get()` carregaria TODA a tabela
+        // (inclusive anos de missões já concluídas) em toda requisição, mesmo
+        // com `wire:poll`. Por isso cada view model recebe só a janela de
+        // data que realmente precisa:
         // - $open: não concluídas, qualquer data (uma "atrasada" pode ser
-        //   antiga — não dá pra restringir por semana, ver teste de A3/A5).
+        //   antiga — não dá pra restringir por semana).
         // - $todayAny / $weekMissions: só hoje / só a semana atual (qualquer
         //   status, pois o calendário e a TV mostram concluídas também).
         // - $calWindow: só a semana navegada no calendário (calMonday..+6).

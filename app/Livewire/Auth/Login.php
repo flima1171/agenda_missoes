@@ -11,13 +11,13 @@ use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 /**
- * Fase A2: login feito à mão (sem Breeze/Fortify/npm), para funcionar offline.
- * Usa Auth::attempt + rate limiting por e-mail+IP para conter força bruta.
+ * Login feito à mão (sem Breeze/Fortify/npm), para funcionar offline.
+ * Usa Auth::attempt + rate limiting por usuário+IP para conter força bruta.
  */
 class Login extends Component
 {
-    #[Validate('required|string|email')]
-    public string $email = '';
+    #[Validate('required|string')]
+    public string $username = '';
 
     #[Validate('required|string')]
     public string $password = '';
@@ -30,11 +30,11 @@ class Login extends Component
 
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        if (! Auth::attempt(['username' => $this->username, 'password' => $this->password], $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => 'As credenciais informadas não conferem.',
+                'username' => 'As credenciais informadas não conferem.',
             ]);
         }
 
@@ -47,7 +47,7 @@ class Login extends Component
     }
 
     /**
-     * Bloqueia após tentativas demais do mesmo e-mail+IP.
+     * Bloqueia após tentativas demais do mesmo usuário+IP.
      */
     protected function ensureIsNotRateLimited(): void
     {
@@ -58,13 +58,13 @@ class Login extends Component
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => 'Tentativas demais. Tente novamente em '.$seconds.' segundos.',
+            'username' => 'Tentativas demais. Tente novamente em '.$seconds.' segundos.',
         ]);
     }
 
     protected function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        return Str::transliterate(Str::lower($this->username).'|'.request()->ip());
     }
 
     public function render()

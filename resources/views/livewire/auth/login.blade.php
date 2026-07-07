@@ -1,23 +1,22 @@
 <div class="auth-card">
     <div class="auth-brand">
-        <div class="brand-mark"><x-icon name="shield" /></div>
-        <div>
-            <strong>Painel de Missões</strong>
-            <span>25º Batalhão de Caçadores</span>
-        </div>
+        <div class="brand-mark"><img src="{{ asset('images/logo-comunicacoes.png') }}" alt=""></div>
+        <strong>Painel de Missões</strong>
+        <img class="auth-unit-mark" src="{{ asset('images/brasao-25bc.png') }}" alt="">
     </div>
+    <p class="auth-brand-sub">25º Batalhão de Caçadores</p>
 
     <h1>Entrar</h1>
     <p class="auth-sub">Acesso restrito à seção. Use suas credenciais.</p>
 
-    @error('email')
+    @error('username')
         <div class="auth-error" role="alert">{{ $message }}</div>
     @enderror
 
     <form wire:submit="login">
         <div class="field">
-            <label for="email">E-mail</label>
-            <input id="email" type="email" wire:model="email" autocomplete="username" autofocus>
+            <label for="username">Usuário</label>
+            <input id="username" type="text" wire:model="username" autocomplete="username" autofocus>
         </div>
 
         <div class="field">

@@ -6,9 +6,9 @@ use App\Models\Mission;
 use Tests\TestCase;
 
 /**
- * Baseline (Fase A0): captura o comportamento ATUAL de Mission::applyCompletion
- * antes de qualquer mudança. applyCompletion é lógica pura de array — não toca no
- * banco —, então basta a aplicação bootada (para os casts do model) sem RefreshDatabase.
+ * Cobre o comportamento de Mission::applyCompletion. É lógica pura de
+ * array — não toca no banco —, então basta a aplicação bootada (para os
+ * casts do model) sem RefreshDatabase.
  */
 class MissionTest extends TestCase
 {

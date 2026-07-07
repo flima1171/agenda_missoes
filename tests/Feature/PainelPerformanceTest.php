@@ -11,10 +11,10 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Fase A5: trava o comportamento das otimizações de performance —
- * escopo das queries por janela de data, paginação/limite de "Todas as
- * missões" e "Concluídas", e a memoização de people()/completers()/weekData()
- * dentro de um MESMO render() (o teste conta as queries de verdade, não
+ * Trava o comportamento das otimizações de performance — escopo das
+ * queries por janela de data, paginação/limite de "Todas as missões" e
+ * "Concluídas", e a memoização de people()/completers()/weekData() dentro
+ * de um MESMO render() (o teste conta as queries de verdade, não
  * confia em "deveria memoizar").
  */
 class PainelPerformanceTest extends TestCase

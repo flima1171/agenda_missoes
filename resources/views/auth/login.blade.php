@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#101b17">
+    <meta name="theme-color" content="#0d1b2a">
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
     <title>Entrar — Agenda de Missões</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     @livewireStyles
     {{--
-        Fase A2: aplica o tema salvo (localStorage) ANTES do paint pra não piscar
-        claro→escuro. O toggle de tema completo é do painel; aqui só respeitamos
-        a preferência já salva e deixamos alternar nesta tela. A extração de um
-        layout compartilhado (com /militares e /usuarios) está prevista pra Fase A6.
+        Aplica o tema salvo (localStorage) ANTES do paint pra não piscar
+        claro→escuro. O toggle de tema completo é do painel; aqui só
+        respeitamos a preferência já salva e deixamos alternar nesta tela.
     --}}
     <script>
         (function () {

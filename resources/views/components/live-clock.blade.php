@@ -1,7 +1,7 @@
 @props(['long' => false, 'year' => true])
 {{--
-    Único trecho com expressão JS "à mão" na Fase 5: o relógio/data ao vivo
-    precisa atualizar a cada segundo sem round-trip ao servidor (wire:poll
+    Único trecho com expressão JS "à mão" na interface: o relógio/data ao
+    vivo precisa atualizar a cada segundo sem round-trip ao servidor (wire:poll
     de 1 em 1 segundo seria pesado e desnecessário). Usa o Alpine.js que já
     vem embutido no bundle do Livewire (confirmado em
     vendor/livewire/livewire/dist/livewire.js, sem instalar nada extra).

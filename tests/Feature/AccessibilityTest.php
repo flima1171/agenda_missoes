@@ -13,9 +13,9 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Fase A6 (UX/acessibilidade): trava os achados 5.1-5.5 da auditoria —
- * tema escuro em /militares e /usuarios, nomes acessíveis em botões só-ícone,
- * ícones decorativos marcados com aria-hidden, e o modal com rótulo/foco.
+ * Cobre UX/acessibilidade: tema escuro em /militares e /usuarios, nomes
+ * acessíveis em botões só-ícone, ícones decorativos marcados com
+ * aria-hidden, e o modal com rótulo/foco.
  */
 class AccessibilityTest extends TestCase
 {

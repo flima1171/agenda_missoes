@@ -23,7 +23,7 @@ yarn-error.log
 # Banco SQLite local (gerado no setup)
 /database/database.sqlite
 /database/*.sqlite-journal
-# Arquivos auxiliares do modo WAL (Fase A4) — efêmeros, nunca versionar
+# Arquivos auxiliares do modo WAL — efêmeros, nunca versionar
 /database/*.sqlite-wal
 /database/*.sqlite-shm
 
@@ -32,3 +32,6 @@ yarn-error.log
 
 # Bundles offline gerados por build-bundle.ps1
 /build
+
+# Notas e prompts de trabalho locais (não fazem parte da aplicação)
+/.claude

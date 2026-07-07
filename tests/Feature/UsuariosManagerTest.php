@@ -10,7 +10,7 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Fase A2: gestão de usuários (só admin) — criar, redefinir senha, alternar papel.
+ * Gestão de usuários (só admin) — criar, redefinir senha, alternar papel.
  */
 class UsuariosManagerTest extends TestCase
 {
@@ -27,13 +27,15 @@ class UsuariosManagerTest extends TestCase
 
         Livewire::test(UsuariosManager::class)
             ->set('name', 'João da Silva')
-            ->set('email', 'joao@25bc.local')
+            ->set('posto_graduacao', 'Sd EP')
+            ->set('nome_guerra', 'Silva')
+            ->set('username', 'joao')
             ->set('password', 'senha1234')
             ->set('is_admin', false)
             ->call('save')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('users', ['email' => 'joao@25bc.local', 'is_admin' => false]);
+        $this->assertDatabaseHas('users', ['username' => 'joao', 'is_admin' => false]);
         $this->assertDatabaseHas('activity_log', ['action' => 'criar_usuario']);
     }
 
@@ -43,12 +45,14 @@ class UsuariosManagerTest extends TestCase
 
         Livewire::test(UsuariosManager::class)
             ->set('name', 'João')
-            ->set('email', 'joao@25bc.local')
+            ->set('posto_graduacao', 'Sd EP')
+            ->set('nome_guerra', 'Silva')
+            ->set('username', 'joao')
             ->set('password', 'senha1234')
             ->call('save')
             ->assertHasNoErrors();
 
-        $novo = User::where('email', 'joao@25bc.local')->first();
+        $novo = User::where('username', 'joao')->first();
         $this->assertTrue(Hash::check('senha1234', $novo->password));
     }
 

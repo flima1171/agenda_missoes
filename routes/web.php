@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Autenticação (Fase A2): login à mão em Livewire, sem Breeze/Fortify/npm.
+// Autenticação: login à mão em Livewire, sem Breeze/Fortify/npm.
 Route::view('/login', 'auth.login')->middleware('guest')->name('login');
 
 Route::post('/logout', function (Request $request) {

@@ -7,7 +7,7 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Baseline (Fase A0): comportamento ATUAL do seletor progressivo de responsáveis.
+ * Cobre o comportamento do seletor progressivo de responsáveis.
  */
 class ResponsibleSelectorTest extends TestCase
 {
@@ -66,8 +66,8 @@ class ResponsibleSelectorTest extends TestCase
 
     public function test_options_for_mantem_responsavel_inativado_como_opcao(): void
     {
-        // Achado 1.3 (A3): "Sd EP Inativo" foi atribuído à missão e depois
-        // inativado — não está mais em people (só ativos). Precisa continuar
+        // "Sd EP Inativo" foi atribuído à missão e depois inativado — não
+        // está mais em people (só ativos). Precisa continuar
         // sendo opção da própria linha, senão some do <select> e é perdido.
         $component = Livewire::test(ResponsibleSelector::class, [
             'people' => ['Cb Luide', 'Toda a seção'],

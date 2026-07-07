@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Fase A5 (achado 4.3, opcional): índice composto para as consultas que
-     * filtram/ordenam por data E hora juntas (calendário, ordenação do painel).
+     * Índice composto para as consultas que filtram/ordenam por data E hora
+     * juntas (calendário, ordenação do painel).
      */
     public function up(): void
     {

@@ -13,12 +13,37 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
+     * Postos/graduações válidos, na hierarquia (do mais alto ao mais baixo).
+     * Chave = abreviação salva no banco/exibida na UI; valor = nome por extenso.
+     *
+     * @var array<string, string>
+     */
+    public const POSTOS = [
+        'Cel' => 'Coronel',
+        'TC' => 'Tenente-Coronel',
+        'Maj' => 'Major',
+        'Cap' => 'Capitão',
+        '1º Ten' => '1º Tenente',
+        '2º Ten' => '2º Tenente',
+        'Asp' => 'Aspirante',
+        'ST' => 'Sub-Tenente',
+        '1º Sgt' => '1º Sargento',
+        '2º Sgt' => '2º Sargento',
+        '3º Sgt' => '3º Sargento',
+        'Cb' => 'Cabo',
+        'Sd EP' => 'Soldado EP',
+        'Sd EV' => 'Soldado EV',
+        'AL' => 'Aluno',
+    ];
+
+    /**
      * @var array<int, string>
      */
     protected $fillable = [
         'name',
+        'posto_graduacao',
         'nome_guerra',
-        'email',
+        'username',
         'password',
         'is_admin',
     ];
@@ -37,7 +62,6 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
         ];
@@ -49,6 +73,8 @@ class User extends Authenticatable
      */
     public function nomeExibicao(): string
     {
-        return $this->nome_guerra ?: $this->name;
+        $nome = $this->nome_guerra ?: $this->name;
+
+        return $this->posto_graduacao ? trim($this->posto_graduacao.' '.$nome) : $nome;
     }
 }

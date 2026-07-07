@@ -3,7 +3,7 @@
         <div class="card-head">
             <div>
                 <h2>{{ $editingId ? 'Editar usuário' : 'Novo usuário' }}</h2>
-                <p>Quem pode entrar no painel. Sem e-mail de recuperação — a senha é redefinida aqui.</p>
+                <p>Quem pode entrar no painel. Sem recuperação automática — a senha é redefinida aqui.</p>
             </div>
         </div>
         <form wire:submit="save" style="padding: 0 20px 20px">
@@ -13,12 +13,21 @@
                     <input id="um-name" type="text" wire:model="name" maxlength="120">
                 </div>
                 <div class="field">
-                    <label for="um-nome-guerra">Nome de guerra (opcional)</label>
+                    <label for="um-posto">Posto/Graduação *</label>
+                    <select id="um-posto" wire:model="posto_graduacao">
+                        <option value="">Selecione…</option>
+                        @foreach ($postos as $sigla => $nome)
+                            <option value="{{ $sigla }}">{{ $nome }} ({{ $sigla }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="um-nome-guerra">Nome de guerra *</label>
                     <input id="um-nome-guerra" type="text" wire:model="nome_guerra" maxlength="60" placeholder="Aparece na trilha e na conclusão">
                 </div>
                 <div class="field">
-                    <label for="um-email">E-mail (login) *</label>
-                    <input id="um-email" type="email" wire:model="email" maxlength="120" autocomplete="off">
+                    <label for="um-username">Usuário (login) *</label>
+                    <input id="um-username" type="text" wire:model="username" maxlength="120" autocomplete="off">
                 </div>
                 <div class="field">
                     <label for="um-password">Senha {{ $editingId ? '(deixe em branco para manter)' : '*' }}</label>
@@ -32,7 +41,10 @@
                 </div>
             </div>
             @error('name') <p class="form-error">{{ $message }}</p> @enderror
-            @error('email') <p class="form-error">{{ $message }}</p> @enderror
+            @error('posto_graduacao') <p class="form-error">{{ $message }}</p> @enderror
+            @error('nome_guerra') <p class="form-error">{{ $message }}</p> @enderror
+            @error('username') <p class="form-error">{{ $message }}</p> @enderror
+            @error('is_admin') <p class="form-error">{{ $message }}</p> @enderror
             @error('password') <p class="form-error">{{ $message }}</p> @enderror
             <div class="form-actions">
                 @if ($editingId)
@@ -54,8 +66,8 @@
         <table class="all-table">
             <thead>
                 <tr>
+                    <th>Nome</th>
                     <th>Usuário</th>
-                    <th>E-mail</th>
                     <th>Papel</th>
                     <th></th>
                 </tr>
@@ -64,7 +76,7 @@
                 @forelse ($usuarios as $usuario)
                     <tr wire:key="usuario-{{ $usuario->id }}">
                         <td>{{ $usuario->nomeExibicao() }}</td>
-                        <td>{{ $usuario->email }}</td>
+                        <td>{{ $usuario->username }}</td>
                         <td>
                             <span class="badge {{ $usuario->is_admin ? 'tone-green' : 'tone-blue' }}">
                                 {{ $usuario->is_admin ? 'Administrador' : 'Usuário' }}

@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#101b17">
+    <meta name="theme-color" content="#0d1b2a">
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
     <title>Usuários — {{ config('app.name') }}</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     @livewireStyles
-    {{-- Fase A6 (achado 5.1): tema escuro também nesta página. --}}
     @include('partials.theme-preload')
 </head>
 <body>

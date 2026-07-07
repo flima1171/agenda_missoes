@@ -9,9 +9,9 @@ use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 /**
- * Fase A2: gestão de usuários (só admin). Cria usuários, redefine senha e
- * alterna o papel de administrador. Sem "esqueci a senha" (offline) — a
- * redefinição é feita aqui ou pelo comando app:create-user.
+ * Gestão de usuários (só admin). Cria usuários, redefine senha e alterna o
+ * papel de administrador. Sem "esqueci a senha" (offline) — a redefinição é
+ * feita aqui ou pelo comando app:create-user.
  */
 class UsuariosManager extends Component
 {
@@ -19,9 +19,11 @@ class UsuariosManager extends Component
 
     public string $name = '';
 
+    public string $posto_graduacao = '';
+
     public string $nome_guerra = '';
 
-    public string $email = '';
+    public string $username = '';
 
     public string $password = '';
 
@@ -40,8 +42,9 @@ class UsuariosManager extends Component
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'nome_guerra' => ['nullable', 'string', 'max:60'],
-            'email' => ['required', 'email', 'max:120', Rule::unique('users', 'email')->ignore($this->editingId)],
+            'posto_graduacao' => ['required', Rule::in(array_keys(User::POSTOS))],
+            'nome_guerra' => ['required', 'string', 'max:60'],
+            'username' => ['required', 'string', 'max:120', Rule::unique('users', 'username')->ignore($this->editingId)],
             // Senha obrigatória ao criar; opcional (deixe em branco para manter) ao editar.
             'password' => [$this->editingId ? 'nullable' : 'required', 'string', 'min:8'],
             'is_admin' => ['boolean'],
@@ -54,15 +57,16 @@ class UsuariosManager extends Component
 
         $this->editingId = $user->id;
         $this->name = $user->name;
+        $this->posto_graduacao = $user->posto_graduacao ?? '';
         $this->nome_guerra = $user->nome_guerra ?? '';
-        $this->email = $user->email;
+        $this->username = $user->username;
         $this->password = '';
         $this->is_admin = $user->is_admin;
     }
 
     public function cancelEdit(): void
     {
-        $this->reset(['editingId', 'name', 'nome_guerra', 'email', 'password', 'is_admin']);
+        $this->reset(['editingId', 'name', 'posto_graduacao', 'nome_guerra', 'username', 'password', 'is_admin']);
         $this->resetValidation();
     }
 
@@ -72,8 +76,9 @@ class UsuariosManager extends Component
 
         $payload = [
             'name' => $data['name'],
-            'nome_guerra' => $data['nome_guerra'] ?: null,
-            'email' => $data['email'],
+            'posto_graduacao' => $data['posto_graduacao'],
+            'nome_guerra' => $data['nome_guerra'],
+            'username' => $data['username'],
             'is_admin' => $data['is_admin'],
         ];
 
@@ -83,11 +88,18 @@ class UsuariosManager extends Component
 
         if ($this->editingId) {
             $user = User::findOrFail($this->editingId);
+
+            if ($user->is_admin && ! $data['is_admin'] && User::where('is_admin', true)->count() <= 1) {
+                $this->addError('is_admin', 'Não é possível remover o último administrador do sistema.');
+
+                return;
+            }
+
             $user->update($payload);
-            ActivityLog::record('editar_usuario', 'usuario', $user->id, 'Editou o usuário "'.$user->email.'".');
+            ActivityLog::record('editar_usuario', 'usuario', $user->id, 'Editou o usuário "'.$user->username.'".');
         } else {
             $user = User::create($payload);
-            ActivityLog::record('criar_usuario', 'usuario', $user->id, 'Criou o usuário "'.$user->email.'".');
+            ActivityLog::record('criar_usuario', 'usuario', $user->id, 'Criou o usuário "'.$user->username.'".');
         }
 
         $this->cancelEdit();
@@ -95,7 +107,8 @@ class UsuariosManager extends Component
 
     /**
      * Alterna o papel de admin. Impede o usuário logado de remover o próprio
-     * papel (evita ficar sem nenhum administrador por engano).
+     * papel e impede remover o papel do último administrador restante —
+     * em ambos os casos, evita que o sistema fique sem nenhum administrador.
      */
     public function toggleAdmin(int $id): void
     {
@@ -107,12 +120,18 @@ class UsuariosManager extends Component
             return;
         }
 
+        if ($user->is_admin && User::where('is_admin', true)->count() <= 1) {
+            $this->addError('toggle', 'Não é possível remover o último administrador do sistema.');
+
+            return;
+        }
+
         $user->update(['is_admin' => ! $user->is_admin]);
         ActivityLog::record(
             $user->is_admin ? 'promover_admin' : 'rebaixar_admin',
             'usuario',
             $user->id,
-            ($user->is_admin ? 'Promoveu a administrador' : 'Removeu o papel de administrador de').' "'.$user->email.'".'
+            ($user->is_admin ? 'Promoveu a administrador' : 'Removeu o papel de administrador de').' "'.$user->username.'".'
         );
     }
 
@@ -120,6 +139,7 @@ class UsuariosManager extends Component
     {
         return view('livewire.usuarios-manager', [
             'usuarios' => User::orderBy('name')->get(),
+            'postos' => User::POSTOS,
         ]);
     }
 }

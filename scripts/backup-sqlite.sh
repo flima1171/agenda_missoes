@@ -29,7 +29,7 @@ TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 DEST="$BACKUP_DIR/database-$TIMESTAMP.sqlite"
 
 # sqlite3 .backup faz uma cópia consistente mesmo com o banco em uso e já
-# faz o checkpoint do WAL (Fase A4) — é o caminho preferido. Se o binário
+# faz o checkpoint do WAL — é o caminho preferido. Se o binário
 # sqlite3 não estiver disponível, cai para cp simples; nesse caso, como o
 # banco roda em modo WAL, é preciso copiar TAMBÉM os arquivos -wal e -shm
 # junto (com o mesmo nome-base do destino), senão o backup ficaria sem as

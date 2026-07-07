@@ -43,8 +43,7 @@ class Mission extends Model
 
     /**
      * Regras de validação centralizadas no model, consumidas pelo formulário
-     * Livewire (App\Livewire\Painel), para não duplicar as constraints. A antiga
-     * API JSON (MissionController) foi removida na Fase A2.
+     * Livewire (App\Livewire\Painel), para não duplicar as constraints.
      *
      * @return array<string, mixed>
      */

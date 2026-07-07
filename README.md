@@ -50,24 +50,24 @@ php artisan serve
 
 Acesse **http://localhost:8000** — você será redirecionado para `/login`.
 
-O `db:seed` cria um administrador inicial (`admin@25bc.local`) além do quadro de militares e das missões de demonstração. Veja a senha padrão e como trocá-la (comando `app:create-user`) em [DEPLOY.md](DEPLOY.md#trocar-a-senha-do-administrador-inicial-obrigatório).
+O `db:seed` cria um administrador inicial (usuário `admin`, senha `admin123`) além do quadro de militares e das missões de demonstração. Veja como trocar a senha padrão (comando `app:create-user`) em [DEPLOY.md](DEPLOY.md).
 
 Para começar sem os dados de exemplo, rode `php artisan migrate --seed --class=Database\\Seeders\\MilitarSeeder` (ou ajuste o `DatabaseSeeder`). Dentro do painel, em ambiente `local`, o botão de recarregar (ícone ↻) restaura os dados de demonstração a qualquer momento — esse botão não existe fora de `local`.
 
 ### Criar/gerenciar usuários pela linha de comando
 
-Sem internet não há "esqueci a senha" por e-mail — use o comando artisan:
+Sem internet não há "esqueci a senha" automático — use o comando artisan:
 
 ```bash
-php artisan app:create-user --name="Fulano de Tal" --email=fulano@25bc.local          # usuário comum
-php artisan app:create-user --name="Ciclano" --email=ciclano@25bc.local --admin       # administrador
+php artisan app:create-user --name="Fulano de Tal" --username=fulano          # usuário comum
+php artisan app:create-user --name="Ciclano" --username=ciclano --admin      # administrador
 ```
 
 ---
 
 ## Colocando em produção na intranet (VM offline, Proxmox/Debian)
 
-O caminho suportado é o pipeline com **FrankenPHP** (PHP embutido, binário único, sem precisar de `apt`/Docker na VM) descrito passo a passo em **[DEPLOY.md](DEPLOY.md)**: gerar o bundle numa máquina com internet (`build-bundle.ps1`), levar o zip + o binário para a VM, configurar o `Caddyfile`, migrar o banco (SQLite em modo **WAL**), trocar a senha do admin inicial e subir como serviço `systemd`.
+O caminho suportado é o pipeline com **FrankenPHP** (PHP embutido, binário único, sem precisar de `apt`/Docker na VM), descrito em **[DEPLOY.md](DEPLOY.md)**. Resumo: `pwsh -File build-bundle.ps1` numa máquina com internet gera um `.zip` com tudo dentro (código, `vendor/`, banco migrado e o próprio binário do FrankenPHP); leva-se só esse zip para a VM, descompacta e roda `sudo bash install.sh` — um único comando cuida do `Caddyfile`, `.env`, migrations, caches, permissões e do serviço `systemd`. Atualizações de código depois usam `update.sh` do mesmo jeito, preservando banco e configuração.
 
 ---
 
@@ -79,7 +79,7 @@ Todo o banco de dados é o arquivo **`database/database.sqlite`**. Use o script 
 scripts/backup-sqlite.sh
 ```
 
-Agendamento via cron e retenção de backups: ver [DEPLOY.md](DEPLOY.md#agendar-o-backup-do-sqlite-na-vm).
+Agendamento via cron e retenção de backups: ver [DEPLOY.md](DEPLOY.md).
 
 ---
 

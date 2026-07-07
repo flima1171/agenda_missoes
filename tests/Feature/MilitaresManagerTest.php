@@ -10,7 +10,7 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Baseline (Fase A0): comportamento ATUAL do CRUD de militares.
+ * Cobre o CRUD de militares.
  */
 class MilitaresManagerTest extends TestCase
 {

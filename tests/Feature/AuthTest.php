@@ -10,8 +10,8 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Fase A2: cobre o login à mão, o middleware de autenticação, o gating de
- * administrador e a remoção da API REST antiga.
+ * Cobre o login à mão, o middleware de autenticação e o gating de
+ * administrador.
  */
 class AuthTest extends TestCase
 {
@@ -25,12 +25,12 @@ class AuthTest extends TestCase
     public function test_login_valido_autentica_e_redireciona_para_o_painel(): void
     {
         $user = User::factory()->create([
-            'email' => 'sgt@25bc.local',
+            'username' => 'sgt',
             'password' => Hash::make('segredo123'),
         ]);
 
         Livewire::test(Login::class)
-            ->set('email', 'sgt@25bc.local')
+            ->set('username', 'sgt')
             ->set('password', 'segredo123')
             ->call('login')
             ->assertHasNoErrors()
@@ -44,15 +44,15 @@ class AuthTest extends TestCase
     public function test_login_com_senha_errada_gera_erro_e_nao_autentica(): void
     {
         User::factory()->create([
-            'email' => 'sgt@25bc.local',
+            'username' => 'sgt',
             'password' => Hash::make('segredo123'),
         ]);
 
         Livewire::test(Login::class)
-            ->set('email', 'sgt@25bc.local')
+            ->set('username', 'sgt')
             ->set('password', 'errada')
             ->call('login')
-            ->assertHasErrors('email');
+            ->assertHasErrors('username');
 
         $this->assertGuest();
     }

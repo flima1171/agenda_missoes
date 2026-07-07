@@ -1,8 +1,8 @@
 {{--
-    Fase A6 (achado 5.1): botão de alternar tema para páginas sem componente
-    Livewire de tema ($root = id do wrapper .painel-root da página, ex.:
-    /militares e /usuarios — o painel principal tem seu próprio botão, ligado
-    a Painel::toggleTheme()).
+    Botão de alternar tema para páginas sem componente Livewire de tema
+    ($root = id do wrapper .painel-root da página, ex.: /militares e
+    /usuarios — o painel principal tem seu próprio botão, ligado a
+    Painel::toggleTheme()).
 --}}
 @props(['root'])
 <button type="button" class="icon-btn theme-toggle-btn" title="Alternar modo escuro" aria-label="Alternar modo escuro"
